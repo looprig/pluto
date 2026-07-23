@@ -1,17 +1,19 @@
 // Package mpqttest wires an MPQT pack execution into ordinary go test, and
 // gates a test on the derived qualification disposition. It runs no trial
 // loop of its own: each runnable table plan expands to exactly one
-// eval.Suite executed once via eval.Run.
+// eval.Suite executed once via eval.Run. Execution itself lives in
+// pkg/run — this package is a thin go-test wrapper around run.Execute that
+// adds t.Fatalf-on-error and t.Logf-on-skip test ergonomics.
 package mpqttest
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/looprig/eval"
 	"github.com/looprig/mpqt/pkg/profile"
 	"github.com/looprig/mpqt/pkg/qual"
+	"github.com/looprig/mpqt/pkg/run"
 )
 
 // RunSpec is one full offline-or-live MPQT execution: a manifest, the packs
@@ -25,51 +27,36 @@ type RunSpec struct {
 }
 
 // Run executes every pack in spec against spec.Target under spec.Manifest and
-// returns the resulting Scorecard. For each pack, qual.Plan expands the
-// manifest into per-table plans; a runnable plan is executed with eval.Run
-// inside its own t.Run(pack/table) subtest, and a non-runnable plan (missing
-// capability) becomes a Skipped TableResult, logging the missing
-// capabilities rather than attempting execution. eval.Run's own preflight
-// error is a t.Fatalf: a broken pack or manifest is a bug in the test setup,
-// not a verdict to record. MPQT implements no trial loop of its own — Trials
-// passes straight through to eval.RunConfig.
+// returns the resulting Scorecard, by delegating to run.Execute (pkg/run):
+// qual.Plan expands the manifest into per-table plans, a runnable plan is
+// executed with eval.Run using spec.Target for every table, and a
+// non-runnable plan (missing capability) becomes a Skipped TableResult
+// instead of being executed. Run logs each skipped table's missing
+// capabilities via t.Logf, and t.Fatalf's on any error run.Execute returns —
+// a broken pack or manifest, or eval.Run's own preflight failure, is a bug in
+// the test setup, not a verdict to record. MPQT implements no trial loop of
+// its own — Trials passes straight through to eval.RunConfig.
 func Run(t *testing.T, spec RunSpec) qual.Scorecard {
 	t.Helper()
 	ctx := t.Context()
 
-	var results []qual.TableResult
-	for _, pack := range spec.Packs {
-		plans, err := qual.Plan(pack, spec.Manifest)
-		if err != nil {
-			t.Fatalf("mpqttest: Plan(%s): %v", pack.Name, err)
-		}
-		for _, plan := range plans {
-			name := fmt.Sprintf("%s/%s", plan.Pack, plan.Table)
-			t.Run(name, func(t *testing.T) {
-				if !plan.Runnable {
-					missing := make([]string, 0, len(plan.Missing))
-					for _, m := range plan.Missing {
-						missing = append(missing, string(m))
-					}
-					t.Logf("mpqttest: skipping %s: missing capabilities [%s]", name, strings.Join(missing, ", "))
-					results = append(results, qual.TableResult{
-						Pack: plan.Pack, Table: plan.Table, Dimension: plan.Dimension,
-						Skipped: true, Missing: plan.Missing,
-					})
-					return
-				}
-				report, err := eval.Run(ctx, eval.RunConfig{Trials: spec.Trials}, plan.Suite, spec.Target, plan.Evaluators...)
-				if err != nil {
-					t.Fatalf("mpqttest: eval.Run(%s): %v", name, err)
-				}
-				results = append(results, qual.TableResult{
-					Pack: plan.Pack, Table: plan.Table, Dimension: plan.Dimension,
-					Report: report,
-				})
-			})
-		}
+	res, err := run.Execute(ctx, run.Spec{
+		Manifest: spec.Manifest,
+		Packs:    spec.Packs,
+		Target:   spec.Target,
+		Config:   eval.RunConfig{Trials: spec.Trials},
+	})
+	if err != nil {
+		t.Fatalf("mpqttest: run.Execute: %v", err)
 	}
-	return qual.Scorecard{Manifest: spec.Manifest, Results: results}
+	for _, plan := range res.Skipped {
+		missing := make([]string, 0, len(plan.Missing))
+		for _, m := range plan.Missing {
+			missing = append(missing, string(m))
+		}
+		t.Logf("mpqttest: skipping %s/%s: missing capabilities [%s]", plan.Pack, plan.Table, strings.Join(missing, ", "))
+	}
+	return res.Scorecard
 }
 
 // RequireDisposition evaluates card against p (profile.Evaluate) and

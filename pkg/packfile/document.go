@@ -192,6 +192,16 @@ func DecodePack(r io.Reader) (PackFile, error) {
 	return pf, nil
 }
 
+// StrictDecode strictly decodes r into out: unknown YAML fields are rejected
+// (yaml.v3's KnownFields(true)) and the input is bounded by MaxFileBytes. It
+// is the one place packfile's strict-decode behavior is implemented; every
+// caller in this package, and pkg/run's manifest/profile codecs (which reuse
+// this to keep yaml.v3 imports confined to packfile and those two decode
+// functions), route through it.
+func StrictDecode(r io.Reader, out any) error {
+	return strictDecode(r, out)
+}
+
 func strictDecode(r io.Reader, out any) error {
 	data, err := boundedReadAll(r, MaxFileBytes)
 	if err != nil {
