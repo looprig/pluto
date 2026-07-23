@@ -2,8 +2,9 @@
 
 GO ?= go
 
-# Module's own package dirs. go list stops at the nested examples/qualification
-# module boundary, so that example module is never touched by these targets.
+# Module's own package dirs. go list stops at nested module boundaries
+# (examples/qualification and cmd/mpqt each have their own go.mod), so
+# neither nested module is ever touched by these targets.
 GO_DIRS = $(shell go list -f '{{.Dir}}' ./...)
 
 test:
