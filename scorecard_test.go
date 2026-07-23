@@ -2,62 +2,10 @@ package mpqt
 
 import (
 	"testing"
-	"time"
 
 	"github.com/looprig/eval"
+	"github.com/looprig/mpqt/internal/reporttest"
 )
-
-// reportWith builds a minimal valid eval.Report carrying one assessment per
-// listed status for evaluator "ev" revision "1" on scenario "s".
-func reportWith(t *testing.T, statuses ...eval.AssessmentStatus) eval.Report {
-	t.Helper()
-	desc := eval.Descriptor{Name: "ev", Revision: "1", Method: eval.MethodProgrammatic}
-	started := time.Date(2026, 7, 22, 0, 0, 0, 0, time.UTC)
-	samples := make([]eval.SampleReport, 0, len(statuses))
-	provEvals := []eval.EvaluatorRevision{{Name: "ev", Revision: "1"}}
-	summary := eval.Summary{Assessments: map[eval.AssessmentStatus]int{}}
-	for i, st := range statuses {
-		var a eval.Assessment
-		switch st {
-		case eval.StatusPass:
-			a = eval.Pass(desc)
-		case eval.StatusFail:
-			a = eval.Fail(desc, eval.Finding{Code: "quality_shortfall", Severity: eval.SeverityMedium})
-		case eval.StatusUnverified:
-			a = eval.Unverified(desc)
-		case eval.StatusError:
-			a = eval.Errored(desc)
-		case eval.StatusSkipped:
-			a = eval.Skipped(desc)
-		}
-		samples = append(samples, eval.SampleReport{
-			ScenarioID: "s",
-			TrialIndex: i,
-			Observation: eval.Observation{Subject: eval.Subject{
-				ID: "t", Kind: eval.SubjectModel, Name: "t", Revision: "r1",
-			}},
-			Assessments: []eval.Assessment{a},
-		})
-		summary.Samples++
-		summary.Assessments[st]++
-	}
-	r := eval.Report{
-		ID:        "suite@rev",
-		Suite:     "rev",
-		Target:    "r1",
-		StartedAt: started,
-		EndedAt:   started.Add(time.Second),
-		Samples:   samples,
-		Summary:   summary,
-		Provenance: eval.Provenance{
-			Suite: "rev", Target: "r1", Evaluators: provEvals,
-		},
-	}
-	if err := r.Validate(); err != nil {
-		t.Fatalf("fixture report invalid: %v", err)
-	}
-	return r
-}
 
 func TestScorecardDimensions(t *testing.T) {
 	t.Parallel()
@@ -66,15 +14,15 @@ func TestScorecardDimensions(t *testing.T) {
 		Results: []TableResult{
 			{
 				Pack: "p", Table: "t1", Dimension: "capability",
-				Report: reportWith(t, eval.StatusPass, eval.StatusPass, eval.StatusFail),
+				Report: reporttest.Build(t, eval.StatusPass, eval.StatusPass, eval.StatusFail),
 			},
 			{
 				Pack: "p", Table: "t2", Dimension: "capability",
-				Report: reportWith(t, eval.StatusPass, eval.StatusUnverified),
+				Report: reporttest.Build(t, eval.StatusPass, eval.StatusUnverified),
 			},
 			{
 				Pack: "p", Table: "t3", Dimension: "safety",
-				Report: reportWith(t, eval.StatusError, eval.StatusSkipped),
+				Report: reporttest.Build(t, eval.StatusError, eval.StatusSkipped),
 			},
 			{
 				Pack: "p", Table: "t4", Dimension: "safety",
@@ -125,7 +73,7 @@ func TestScorecardStatusRollup(t *testing.T) {
 		Manifest: validManifest(),
 		Results: []TableResult{
 			{Pack: "p", Table: "t1", Dimension: "capability",
-				Report: reportWith(t, eval.StatusPass, eval.StatusFail, eval.StatusError)},
+				Report: reporttest.Build(t, eval.StatusPass, eval.StatusFail, eval.StatusError)},
 		},
 	}
 	roll, err := sc.StatusRollup()
