@@ -50,15 +50,18 @@ type Plan struct {
 
 // Preflight builds the plan for a set of runnable table plans: target calls
 // are scenarios × trials per table, summed across plans; judge calls are
-// scenarios × trials × (evaluators on that table whose Descriptor().Method
-// is eval.MethodModel), summed across plans. Method is the signal used to
-// identify a "judge" evaluator because it is the one thing eval.Evaluator
-// exposes for this purpose (Method's own doc calls it out for "cost
-// accounting"): every model judge built by eval/judge.New declares
+// scenarios × trials × (evaluators on that table whose Descriptor().Method is
+// not eval.MethodProgrammatic), summed across plans. Method is the signal
+// used to identify a "judge" evaluator because it is the one thing
+// eval.Evaluator exposes for this purpose (Method's own doc calls it out for
+// "cost accounting"): every model judge built by eval/judge.New declares
 // MethodModel, and every programmatic evaluator in eval/exact declares
 // MethodProgrammatic; there is no exported marker or type assertion that
 // distinguishes "judge" more directly without depending on the judge
-// package's unexported concrete type.
+// package's unexported concrete type. Checking "!= MethodProgrammatic" rather
+// than "== MethodModel" is deliberate: a future eval.MethodComposite
+// evaluator (none exists yet) would still involve a model judge call and
+// must be counted, not silently ignored — see judgeDescriptors.
 //
 // A non-runnable plan (Runnable=false) contributes nothing: qual.Plan leaves
 // its Suite and Evaluators at their zero value, so it has no scenarios to
@@ -190,14 +193,21 @@ func (p *Plan) estimateTable(ctx context.Context, plan qual.TablePlan, calls int
 }
 
 // judgeDescriptors returns the descriptors of every non-nil evaluator in
-// evaluators whose Method is eval.MethodModel — this table's judge calls.
+// evaluators whose Method is not eval.MethodProgrammatic — this table's judge
+// calls. Today that means exactly eval.MethodModel (the only other Method any
+// evaluator sets), but phrasing the check as "not programmatic" rather than
+// "is MethodModel" is forward-safe: a future eval.MethodComposite evaluator
+// (one that grounds a semantic conclusion in operational facts by combining
+// component evaluators — see eval.MethodComposite's doc) would still involve
+// a model judge call and must not be silently excluded from cost accounting
+// just because it isn't MethodModel itself.
 func judgeDescriptors(evaluators []eval.Evaluator) []eval.Descriptor {
 	var out []eval.Descriptor
 	for _, ev := range evaluators {
 		if ev == nil {
 			continue
 		}
-		if desc := ev.Descriptor(); desc.Method == eval.MethodModel {
+		if desc := ev.Descriptor(); desc.Method != eval.MethodProgrammatic {
 			out = append(out, desc)
 		}
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/looprig/eval"
 	"github.com/looprig/inference"
 	"github.com/looprig/inference/stream"
+	"github.com/looprig/mpqt/pkg/codepacks/capability"
 	"github.com/looprig/mpqt/pkg/codepacks/structuredoutput"
 	"github.com/looprig/mpqt/pkg/packfile"
 	"github.com/looprig/mpqt/pkg/qual"
@@ -171,6 +172,78 @@ func TestExecuteTargetForTableError(t *testing.T) {
 	}
 	if !errors.Is(err, wantErr) {
 		t.Errorf("Execute error = %v, want wrapping %v", err, wantErr)
+	}
+}
+
+// TestExecuteReturnsPartialResultOnLaterTableError proves Execute preserves
+// every table processed successfully before a later table's error, rather
+// than discarding it: pkg/codepacks/capability.V1 has several
+// single-scenario, single-table cases with no special capability
+// requirement, so a plain conforming manifest makes every one of them
+// Runnable, and TargetForTable can be made to fail predictably for exactly
+// one of those tables while the others succeed.
+func TestExecuteReturnsPartialResultOnLaterTableError(t *testing.T) {
+	t.Parallel()
+	pack := capability.V1()
+	if len(pack.Tables) < 2 {
+		t.Fatalf("capability.V1() has %d tables, want at least 2 for this test", len(pack.Tables))
+	}
+	failingTable := pack.Tables[1].Name
+	wantErr := errors.New("boom")
+
+	var scriptsForTable = func(tbl qual.Table) *fixtarget.Scripted {
+		scripts := map[string]fixtarget.Script{}
+		for _, sc := range tbl.Scenarios {
+			scripts[sc.ID] = fixtarget.Script{Reply: "ok"}
+		}
+		return fixtarget.NewScripted(string(tbl.Name), scripts)
+	}
+
+	var calls []qual.TablePlan
+	res, err := run.Execute(context.Background(), run.Spec{
+		Manifest: conformingManifest(),
+		Packs:    []qual.Pack{pack},
+		TargetForTable: func(plan qual.TablePlan) (eval.Target, error) {
+			calls = append(calls, plan)
+			if plan.Table == failingTable {
+				return nil, wantErr
+			}
+			for _, tbl := range pack.Tables {
+				if tbl.Name == plan.Table {
+					return scriptsForTable(tbl), nil
+				}
+			}
+			t.Fatalf("no table named %s in pack", plan.Table)
+			return nil, nil
+		},
+	})
+
+	if err == nil {
+		t.Fatal("Execute: want error from the failing table, got nil")
+	}
+	if !errors.Is(err, wantErr) {
+		t.Errorf("Execute error = %v, want wrapping %v", err, wantErr)
+	}
+
+	// The table before the failing one (pack.Tables[0]) was processed
+	// successfully and must still be present in the returned Result, not
+	// discarded because a later table failed.
+	if len(res.Reports) != 1 {
+		t.Fatalf("Reports = %+v, want exactly 1 report from the earlier successful table", res.Reports)
+	}
+	if len(res.Scorecard.Results) != 1 {
+		t.Fatalf("Scorecard.Results = %+v, want exactly 1 result from the earlier successful table", res.Scorecard.Results)
+	}
+	if res.Scorecard.Results[0].Table != pack.Tables[0].Name {
+		t.Errorf("Scorecard.Results[0].Table = %s, want %s", res.Scorecard.Results[0].Table, pack.Tables[0].Name)
+	}
+	if res.Scorecard.Results[0].Skipped {
+		t.Error("Scorecard.Results[0].Skipped = true, want false (it succeeded)")
+	}
+	// Execute must have stopped at the failing table: TargetForTable is
+	// called for tables[0] and tables[1] (the failure), never beyond.
+	if len(calls) != 2 {
+		t.Fatalf("TargetForTable calls = %d, want exactly 2 (stop at the failing table)", len(calls))
 	}
 }
 

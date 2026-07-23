@@ -79,9 +79,18 @@ type Result struct {
 // and is retained verbatim in Result.Skipped; it is never executed and never
 // silently dropped. Execute returns an error from Spec validation, from
 // qual.Plan (an ill-formed pack or manifest), from Spec.TargetForTable, or
-// from eval.Run's own preflight check — in every case the caller receives no
-// partial Result, since a failure at any of these stages means the run as a
-// whole did not produce trustworthy coverage.
+// from eval.Run's own preflight check. Only Spec validation failure (before
+// any pack is planned or any target invoked) yields a zero-value Result: once
+// any table has actually been planned or run, a later failure returns the
+// Result accumulated from every pack/table processed successfully so far
+// ALONGSIDE the error, rather than discarding it. This extends the same
+// "visible coverage, never silent" philosophy behind Result.Skipped to the
+// error path — an operator running many tables against a live target should
+// not lose every already-executed (and potentially paid) table's report just
+// because a later table hit a transient error. Callers must check the error
+// to know whether the run as a whole completed; a non-nil error always means
+// something failed, but the accompanying Result may still carry partial,
+// trustworthy coverage worth reporting.
 func Execute(ctx context.Context, s Spec) (Result, error) {
 	if err := s.validate(); err != nil {
 		return Result{}, err
@@ -90,11 +99,18 @@ func Execute(ctx context.Context, s Spec) (Result, error) {
 	var results []qual.TableResult
 	var reports []eval.Report
 	var skipped []qual.TablePlan
+	partial := func() Result {
+		return Result{
+			Scorecard: qual.Scorecard{Manifest: s.Manifest, Results: results},
+			Reports:   reports,
+			Skipped:   skipped,
+		}
+	}
 
 	for _, pack := range s.Packs {
 		plans, err := qual.Plan(pack, s.Manifest)
 		if err != nil {
-			return Result{}, fmt.Errorf("run: Plan(%s): %w", pack.Name, err)
+			return partial(), fmt.Errorf("run: Plan(%s): %w", pack.Name, err)
 		}
 		for _, plan := range plans {
 			if !plan.Runnable {
@@ -108,12 +124,12 @@ func Execute(ctx context.Context, s Spec) (Result, error) {
 
 			target, err := s.targetFor(plan)
 			if err != nil {
-				return Result{}, fmt.Errorf("run: TargetForTable(%s/%s): %w", plan.Pack, plan.Table, err)
+				return partial(), fmt.Errorf("run: TargetForTable(%s/%s): %w", plan.Pack, plan.Table, err)
 			}
 
 			report, err := eval.Run(ctx, s.Config, plan.Suite, target, plan.Evaluators...)
 			if err != nil {
-				return Result{}, fmt.Errorf("run: eval.Run(%s/%s): %w", plan.Pack, plan.Table, err)
+				return partial(), fmt.Errorf("run: eval.Run(%s/%s): %w", plan.Pack, plan.Table, err)
 			}
 			reports = append(reports, report)
 			results = append(results, qual.TableResult{
@@ -123,11 +139,7 @@ func Execute(ctx context.Context, s Spec) (Result, error) {
 		}
 	}
 
-	return Result{
-		Scorecard: qual.Scorecard{Manifest: s.Manifest, Results: results},
-		Reports:   reports,
-		Skipped:   skipped,
-	}, nil
+	return partial(), nil
 }
 
 // BuildTarget constructs the live inference target for one table: it expands

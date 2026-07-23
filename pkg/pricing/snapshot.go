@@ -133,9 +133,8 @@ func ParseSnapshot(raw []byte, sourceURL string, fetchedAt time.Time) (Snapshot,
 // carries the caller's deadline — there is no unbounded blocking) and bounds
 // the response body to MaxSnapshotBytes with io.LimitReader, reading one
 // byte past the bound so an oversized body is detected and rejected rather
-// than silently truncated. client may be nil, in which case
-// http.DefaultClient is used; ctx's deadline is what actually bounds the
-// call either way.
+// than silently truncated. client may be nil, in which case a default client
+// is used.
 //
 // url is validated before use: it must be a syntactically safe https URL
 // (or http restricted to a loopback host, for local testing), with a host
@@ -143,13 +142,27 @@ func ParseSnapshot(raw []byte, sourceURL string, fetchedAt time.Time) (Snapshot,
 // module applies to a Model's BaseURL, applied here because url is
 // caller-supplied and this function makes it the target of a real network
 // request.
+//
+// That validation only covers the URL actually passed in: without more, the
+// real HTTP request would still follow Go's default redirect behavior (up to
+// 10 redirects, none of them re-validated), so a validated
+// https://models.dev/api.json that later 302s to an internal or unsafe host
+// would sail through unchecked. To close that gap, FetchSnapshot disables
+// redirect-following — mirroring the same CheckRedirect: http.ErrUseLastResponse
+// policy the inference module's own transport client uses (see
+// inference/transport/client.go's newHTTPClient) — on whichever client ends
+// up making the request: when client is nil, the default client it builds
+// never follows redirects; when the caller supplies their own client, that
+// same policy is applied to a copy of it (the caller's original client is
+// never mutated) unless the caller has already set their own CheckRedirect,
+// in which case that explicit choice is respected as-is. Either way, a 3xx
+// response is surfaced as its own (non-200) status and rejected below,
+// rather than silently chased.
 func FetchSnapshot(ctx context.Context, client *http.Client, rawURL string) (Snapshot, error) {
 	if err := validateFetchURL(rawURL); err != nil {
 		return Snapshot{}, err
 	}
-	if client == nil {
-		client = http.DefaultClient
-	}
+	client = noRedirectClient(client)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
@@ -175,6 +188,36 @@ func FetchSnapshot(ctx context.Context, client *http.Client, rawURL string) (Sna
 	}
 
 	return ParseSnapshot(body, rawURL, time.Now())
+}
+
+// noRedirectClient resolves the *http.Client FetchSnapshot actually uses:
+// client itself if it already declares a CheckRedirect policy (the caller's
+// explicit choice is respected); otherwise a client that behaves like client
+// (or, if client is nil, like http.DefaultClient) in every other respect but
+// never follows a redirect. It never mutates the client passed in — a
+// non-nil client is copied by value before CheckRedirect is set on the copy.
+func noRedirectClient(client *http.Client) *http.Client {
+	if client == nil {
+		return &http.Client{CheckRedirect: refuseRedirect}
+	}
+	if client.CheckRedirect != nil {
+		return client
+	}
+	cp := *client
+	cp.CheckRedirect = refuseRedirect
+	return &cp
+}
+
+// refuseRedirect is an http.Client.CheckRedirect that never follows a
+// redirect: it mirrors the inference module's own transport client (see
+// inference/transport/client.go's newHTTPClient), which disables
+// redirect-following for the same reason FetchSnapshot needs to here — a
+// fixed API endpoint has no legitimate need to redirect, and following one
+// would retarget an already-validated URL at an unvalidated host with no
+// re-validation. Returning http.ErrUseLastResponse makes http.Client return
+// the 3xx response itself instead of chasing Location.
+func refuseRedirect(*http.Request, []*http.Request) error {
+	return http.ErrUseLastResponse
 }
 
 // validateFetchURL rejects a URL that is empty, unparsable, carries

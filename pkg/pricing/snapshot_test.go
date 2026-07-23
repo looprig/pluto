@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -207,6 +208,51 @@ func TestFetchSnapshotRespectsContextDeadline(t *testing.T) {
 	if err == nil {
 		t.Fatal("FetchSnapshot() error = nil, want a context-deadline error")
 	}
+}
+
+func TestFetchSnapshotDoesNotFollowRedirects(t *testing.T) {
+	t.Parallel()
+
+	var unsafeHit atomic.Bool
+	unsafe := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		unsafeHit.Store(true)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(realisticFixture))
+	}))
+	t.Cleanup(unsafe.Close)
+
+	redirecting := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, unsafe.URL, http.StatusFound)
+	}))
+	t.Cleanup(redirecting.Close)
+
+	run := func(t *testing.T, client *http.Client) {
+		t.Helper()
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		_, err := pricing.FetchSnapshot(ctx, client, redirecting.URL)
+		if err == nil {
+			t.Fatal("FetchSnapshot() error = nil, want an error for an unfollowed redirect (unexpected status 302)")
+		}
+		if !strings.Contains(err.Error(), "302") {
+			t.Errorf("error = %v, want it to mention the unfollowed 302 status", err)
+		}
+		if unsafeHit.Load() {
+			t.Error("FetchSnapshot followed the redirect to the unsafe target; it must not")
+		}
+	}
+
+	t.Run("nil client", func(t *testing.T) {
+		run(t, nil)
+	})
+	t.Run("caller-supplied client with no CheckRedirect of its own", func(t *testing.T) {
+		unsafeHit.Store(false)
+		// redirecting.Client() is a plain *http.Client with CheckRedirect
+		// unset (Go's default 10-redirect-following behavior), exactly the
+		// caller-supplied-client case FetchSnapshot must also harden.
+		run(t, redirecting.Client())
+	})
 }
 
 func TestFetchSnapshotRejectsUnsafeURL(t *testing.T) {
