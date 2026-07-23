@@ -37,7 +37,7 @@ cd examples/qualification && GOWORK=off go mod tidy && GOWORK=off go test -race 
   yet tested.
 - Evaluators must be honest about missing evidence: return Unverified, never
   Pass, when the evidence a check needs is absent (see
-  `packs/tooluse/v1.go` for a worked example of why).
+  `pkg/codepacks/tooluse/v1.go` for a worked example of why).
 
 ## Dependencies
 
