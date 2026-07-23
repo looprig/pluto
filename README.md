@@ -19,11 +19,11 @@ scorecard into a disposition. MPQT never forks the `eval` runner and takes no
 runtime action against live sessions — it only plans, executes, and
 interprets `eval` suites.
 
-A typical MPQT run looks like: build a `mpqt.Manifest` describing the
+A typical MPQT run looks like: build a `qual.Manifest` describing the
 candidate (provider, model, base URL, declared capabilities), plan one or
-more `mpqt.Pack`s against it with `mpqt.Plan` (which skips any table whose
+more `qual.Pack`s against it with `qual.Plan` (which skips any table whose
 required capability the manifest doesn't declare), execute every runnable
-table with `eval.Run` to produce a `mpqt.Scorecard`, and then either compare
+table with `eval.Run` to produce a `qual.Scorecard`, and then either compare
 that scorecard against an incumbent's (`compare.Compare`) or gate a
 deployment decision on it against an organization `profile.Profile`
 (`profile.Evaluate`). `mpqttest.Run` and `mpqttest.RequireDisposition` wire
@@ -52,14 +52,14 @@ func TestOfflineQualification(t *testing.T) {
 		}
 	}
 	card := mpqttest.Run(t, mpqttest.RunSpec{
-		Manifest: mpqt.Manifest{
-			TargetID: "offline-example", Role: mpqt.RoleCandidate,
+		Manifest: qual.Manifest{
+			TargetID: "offline-example", Role: qual.RoleCandidate,
 			Provider: "test", Model: "fake", APIFormat: "openai",
 			BaseURL: "https://example.invalid/v1", Revision: "r-fake",
-			EndpointClass: mpqt.EndpointRemote,
-			Capabilities:  []mpqt.Capability{mpqt.CapabilityStructuredOutput},
+			EndpointClass: qual.EndpointRemote,
+			Capabilities:  []qual.Capability{qual.CapabilityStructuredOutput},
 		},
-		Packs:  []mpqt.Pack{pack},
+		Packs:  []qual.Pack{pack},
 		Target: fixtarget.NewScripted("offline-example", scripts),
 	})
 	minScore := 90.0
@@ -88,7 +88,7 @@ as part of the default suite. `examples/qualification` is its own nested Go
 module (`examples/qualification/go.mod`) rather than part of the root
 module: `llm`/`inference` pull in a sizable transitive dependency chain (TEE
 attestation, crypto) that only this one example needs, and nesting it keeps
-that weight and audit surface out of every other mpqt consumer's module
+that weight and audit surface out of every other MPQT consumer's module
 graph:
 
 ```
@@ -116,7 +116,7 @@ cost-incurring example from generic process-boundary integration tests.
 | `operational-stability` (`packs/operational`) | v1 | operational | `tools` (tool-errors table only; latency needs none) |
 
 Every pack's `V1()` constructor is pure (no I/O) and every table declares its
-own `Requires` capabilities independently, so `mpqt.Plan` can skip individual
+own `Requires` capabilities independently, so `qual.Plan` can skip individual
 tables — for example `operational-stability`'s latency table still runs
 against a manifest with no declared capabilities, while its tool-errors table
 is skipped.
@@ -142,7 +142,7 @@ yields exactly one of four dispositions, in this precedence:
 
 ## Target-class limitations
 
-`mpqt.Manifest.EndpointClass` records where the target under test actually
+`qual.Manifest.EndpointClass` records where the target under test actually
 executes, because that placement bounds what MPQT can honestly claim to have
 observed. A **remote** endpoint (hosted inference over HTTPS, the common
 case for third-party model providers) is observed purely at the wire: MPQT
@@ -168,7 +168,7 @@ Today (Phase 1), packs are Go code: add a scenario to the relevant table in
 `Revision` for any semantic change — `Pack.Validate()` and the pack's
 conforming/deviant tests enforce the rest. Custom evaluators implement
 `eval.Evaluator` and are wired at the composition root; custom packs are just
-values of `mpqt.Pack`, so private packs live in your own repo and run through
+values of `qual.Pack`, so private packs live in your own repo and run through
 the same `mpqttest.Run`.
 
 The next phase ([design](docs/2026-07-23-phase2-packfiles-generation-cli-design.md))
