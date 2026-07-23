@@ -1,5 +1,10 @@
 //go:build qualification
 
+// Package qualification's live test intentionally uses the distinct
+// "qualification" build tag rather than this repo's house "integration"
+// convention: it distinguishes a live-credentialed, cost-incurring example (a
+// real paid call to OpenRouter) from the generic process-boundary integration
+// tests that convention covers.
 package qualification
 
 import (

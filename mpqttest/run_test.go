@@ -1,6 +1,7 @@
 package mpqttest_test
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/looprig/eval"
@@ -120,5 +121,35 @@ func TestRun_TrialsMultipliesSamples(t *testing.T) {
 	}
 	if roll.Samples != trials*wantScenarios {
 		t.Errorf("Samples = %d, want %d (trials=%d * scenarios=%d)", roll.Samples, trials*wantScenarios, trials, wantScenarios)
+	}
+}
+
+func TestRun_SkippedTableRecordsMissingCapability(t *testing.T) {
+	t.Parallel()
+	pack := structuredoutput.V1()
+	manifest := testManifest()
+	manifest.Capabilities = nil // declares no capabilities: every table requiring
+	// structured_output must be skipped, never silently run or dropped.
+
+	// The target is never invoked on the skipped path, so an empty script map
+	// is fine: a call to Observe for an unscripted scenario would itself fail
+	// the test via UnscriptedScenarioError, which is exactly the guard that
+	// proves the skip really did skip execution.
+	card := mpqttest.Run(t, mpqttest.RunSpec{
+		Manifest: manifest,
+		Packs:    []mpqt.Pack{pack},
+		Target:   fixtarget.NewScripted("offline-test", nil),
+	})
+
+	if len(card.Results) != 1 {
+		t.Fatalf("Results = %+v, want exactly 1 table result", card.Results)
+	}
+	res := card.Results[0]
+	if !res.Skipped {
+		t.Fatalf("TableResult.Skipped = false, want true (manifest declares no capabilities)")
+	}
+	wantMissing := []mpqt.Capability{mpqt.CapabilityStructuredOutput}
+	if !reflect.DeepEqual(res.Missing, wantMissing) {
+		t.Errorf("Missing = %+v, want %+v", res.Missing, wantMissing)
 	}
 }
