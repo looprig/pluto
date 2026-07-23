@@ -1,4 +1,10 @@
-# mpqt — Model & Prompt Qualification Test suite
+# mpqt — Model Power Quality Test
+
+MPQT qualifies a newly released or newly configured model for enterprise use.
+The name borrows from electrical power-quality testing: a model is placed
+under representative load, faults, distorted inputs, and hostile conditions;
+its output quality, stability, safety, and unintended side effects are
+measured before it is connected to an organization's workload.
 
 MPQT is a product and test-pack layer over
 [`github.com/looprig/eval`](https://github.com/looprig/eval), the reusable
@@ -155,12 +161,53 @@ exploit that; the endpoint class is recorded today so that later, richer
 target adapters have a place to declare and act on the distinction, and so
 that every scorecard is honest about which class of evidence it rests on.
 
-## Phase 2
+## Adding tests
 
-Deferred out of this build, tracked for a later phase: an egress and
-agentic-security lab (deeper misuse/exfiltration testing that needs more than
-wire-level observation), judge-backed rubric evaluators (beyond the
-programmatic `exact` evaluators used throughout Phase 1), pricing/cost
-accounting per qualification run, a CLI for running packs and profiles
-outside of `go test`, and Markdown/HTML report renderers on top of the
-canonical `reportjson` form.
+Today (Phase 1), packs are Go code: add a scenario to the relevant table in
+`packs/<name>/v1.go`, keep its ID unique pack-wide, and bump the pack
+`Revision` for any semantic change — `Pack.Validate()` and the pack's
+conforming/deviant tests enforce the rest. Custom evaluators implement
+`eval.Evaluator` and are wired at the composition root; custom packs are just
+values of `mpqt.Pack`, so private packs live in your own repo and run through
+the same `mpqttest.Run`.
+
+The next phase ([design](docs/2026-07-23-phase2-packfiles-generation-cli-design.md))
+replaces Go literals with a hand-editable YAML corpus and adds an `mpqt` CLI,
+so adding tests becomes either of:
+
+- **Manually**: append a scenario block to the table's YAML file and run
+  `mpqt validate`. Every file carries a
+  `# yaml-language-server: $schema=…` header, so any editor running the
+  standard YAML language server (VS Code via the Red Hat YAML extension,
+  JetBrains, Neovim) gives completion, hover documentation, and inline
+  validation against the shipped JSON Schema; `mpqt schema` prints it and
+  `mpqt evaluators` lists every evaluator kind, its options, and the evidence
+  it needs.
+- **With an LLM**: `mpqt gen --pack packs/tool-use --table discipline -n 5`
+  generates candidate scenarios via structured output — prompted with the
+  table's real tool schemas, evaluator constraints, and existing scenarios as
+  seeds — then validates, dedupes, and appends them with provenance labels.
+  You review the git diff. Model choice lives in a committed config file; the
+  API key comes only from the environment.
+
+## Roadmap
+
+Tracked in [the Phase 2 design](docs/2026-07-23-phase2-packfiles-generation-cli-design.md):
+the YAML pack corpus and generation CLI above, a live `mpqt run` with
+preflight token/cost estimation, `mpqt compare` as a CI model-upgrade gate,
+and custom packs (`mpqt init`): paste your own system prompt and tools,
+describe evaluation criteria as a plain-language rubric, and generate
+scenarios for *your* application rather than only the built-in packs. Later phases (per the original design): an egress and agentic-security
+lab, judge-backed rubric revisions of the capability/safety packs, and
+Markdown/HTML report renderers over the canonical `reportjson` form.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). In short: `make secure` must pass,
+tests run with `-race`, scenario or evaluator changes bump the pack revision,
+and external dependencies need explicit maintainer approval before they enter
+`go.mod`.
+
+## License
+
+Apache License 2.0 — see [LICENSE](LICENSE).
