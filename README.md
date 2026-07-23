@@ -78,16 +78,26 @@ GOWORK=off go test -race ./examples/qualification
 OpenRouter model over `github.com/looprig/llm/auto` and
 `github.com/looprig/eval/target/inference`. It is gated behind the
 `qualification` build tag so it never runs (or requires network/credentials)
-as part of the default suite:
+as part of the default suite. `examples/qualification` is its own nested Go
+module (`examples/qualification/go.mod`) rather than part of the root
+module: `llm`/`inference` pull in a sizable transitive dependency chain (TEE
+attestation, crypto) that only this one example needs, and nesting it keeps
+that weight and audit surface out of every other mpqt consumer's module
+graph:
 
 ```
-GOWORK=off go test -tags qualification -count=1 ./examples/qualification
+cd examples/qualification
+GOWORK=off go test -tags qualification -count=1 ./...
 ```
 
 Set `OPENROUTER_API_KEY` in the environment first; the test skips itself when
 the key is absent. `-count=1` defeats test caching, which matters here since
 the point of the run is to observe the live target again, not to reuse a
 cached pass.
+
+The live test also uses a distinct `qualification` build tag rather than this
+repo's house `integration` convention, to distinguish a live-credentialed,
+cost-incurring example from generic process-boundary integration tests.
 
 ## Pack catalogue
 
