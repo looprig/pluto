@@ -11,7 +11,11 @@ replace (
 
 require github.com/looprig/eval v0.0.0-00010101000000-000000000000
 
-require github.com/looprig/core v0.2.0
+require (
+	github.com/looprig/core v0.2.0
+	github.com/looprig/inference v0.3.0
+	gopkg.in/yaml.v3 v3.0.1
+)
 
 require (
 	cloud.google.com/go v0.123.0 // indirect
@@ -65,7 +69,6 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260706201446-f0a921348800 // indirect
 	google.golang.org/grpc v1.82.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 	honnef.co/go/tools v0.7.0 // indirect
 )
 
