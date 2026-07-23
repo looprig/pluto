@@ -28,6 +28,57 @@ Define small interfaces at the package that consumes them when substitution, tes
 
 **Log security events, not secrets.** Audit auth failures, permission denials, and unexpected inputs. Never log credentials, tokens, or PII.
 
+## Repo layout (Phase 2: packfiles, generation, CLI)
+
+`pkg/` holds every llm-free package; `cmd/mpqt` is the sole composition root
+allowed to import `github.com/looprig/llm`:
+
+- `pkg/qual` — the core domain: `Pack`, `Table`, `Manifest`, `Plan`, `Scorecard`.
+- `pkg/profile` — turns a `Scorecard` into a release disposition
+  (Qualified/Restricted/Unverified/Rejected) against an org `Profile`;
+  `Disposition.Rank()` gives that four-way ordering a canonical, exported
+  worst-to-best value so a `--require` threshold gate never needs its own
+  CLI-local copy.
+- `pkg/compare` — candidate-vs-incumbent scorecard diff, rolled up per table.
+- `pkg/reportjson` — canonical, versioned, fail-closed JSON codec for a
+  `Scorecard` (+ optional `profile.Result`).
+- `pkg/mpqttest` — wires a pack execution into ordinary `go test` and gates
+  on a disposition.
+- `pkg/packfile` — the YAML trust boundary: strict pack/table decoding,
+  environment templates, the evaluator registry, directory loading, digests,
+  `Lint()`, and the generated JSON Schema. The **only** package that imports
+  `gopkg.in/yaml.v3`; `pkg/run`'s manifest/profile YAML codecs reuse its
+  exported `packfile.StrictDecode` rather than importing yaml.v3 themselves,
+  so the dependency stays confined to this one package.
+- `pkg/codepacks` — the five built-in packs as Go code
+  (`capability`, `tooluse`, `structuredoutput`, `safety`, `operational`).
+  **Kept permanently, not a legacy holdover**: mid-execution the plan to
+  migrate these to YAML and delete the Go source was reversed by explicit
+  user decision, so Go-authored packs are a first-class, parallel mechanism
+  to `pkg/packfile`'s YAML corpus (`packs/`), not a deprecated one.
+- `pkg/run` — target construction, pack execution, partial-result
+  preservation; the shared core behind both `mpqttest` and the CLI's `run`.
+- `pkg/pricing` — models.dev snapshot parsing, cost/token estimation,
+  redirect-safe snapshot fetch; llm-free (takes a `Counter` interface).
+- `pkg/gen` — single-turn, structured-output scenario generation plus the
+  mechanical validate/dedupe/append post-pass.
+- `pkg/cli` — every `mpqt` command's logic (`init`, `validate`, `schema`,
+  `evaluators`, `gen`, `run`, `compare`), parameterized over an injected
+  `App` (client/counter constructors, registry, I/O). llm-free.
+
+**The `cmd/mpqt` nested-module rule.** `cmd/mpqt` is its own nested Go module
+(own `go.mod`) and is the **only** place anywhere in this repo that may
+import `github.com/looprig/llm` (via `llm/auto`, to construct a real
+`inference.Client`/`pricing.Counter`). Every package under `pkg/` takes an
+injected `inference.Client` / `pricing.Counter` instead of constructing one,
+so the root module's dependency graph never pulls in `llm`'s transitive
+weight (TEE attestation, secp256k1, x/crypto). A custom-evaluator binary
+follows the same shape: register kinds on a `packfile.Registry`, call
+`pkg/cli.Main` from your own `main`.
+
+`gopkg.in/yaml.v3` is already listed under Dependencies below (approved
+2026-07-23) — that entry is current; do not add a second one.
+
 ## Dependencies
 
 **Prefer stdlib.** Always reach for the Go standard library first. If a need can be met with stdlib — even with a bit more code — use stdlib.

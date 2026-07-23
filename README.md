@@ -32,9 +32,137 @@ canonical, redacted, versioned JSON form for storage or transport.
 
 ## Quick start
 
+MPQT packs come in two equally first-class forms, and neither supersedes the
+other:
+
+- **YAML + CLI** — hand-editable (or `mpqt gen`-generated) YAML under
+  `packs/`, loaded by `pkg/packfile` and run by the `mpqt` binary
+  (`cmd/mpqt`). No Go required to write or run a pack.
+- **Go code** — packs as `qual.Pack` values in `pkg/codepacks/`, run directly
+  with `pkg/mpqttest` inside ordinary `go test`, as
+  `examples/qualification/qualification_test.go` still does. This path is
+  permanent, not a legacy holdover: it is how the five built-in packs
+  (`core-capability`, `tool-use`, `structured-output`, `safety-conduct`,
+  `operational-stability`) ship, and it is the natural choice for a
+  Go-native test suite that wants packs as ordinary compiled values rather
+  than a separate file format.
+
+Pick whichever fits your workflow; both compile down to the same `qual.Pack`
+/ `eval.Run` execution core (`pkg/run`).
+
+### YAML + CLI walkthrough
+
+Build the CLI (its own nested Go module — `cmd/mpqt` is the only place in
+this repo that imports `github.com/looprig/llm`, keeping that dependency
+tree out of the root module's graph):
+
+```
+cd cmd/mpqt && GOWORK=off go build -o mpqt ./...
+```
+
+`packs/example/` is a minimal, committed reference pack — a single table
+(`discipline.yaml`) with one tool (`search`) and a `forbidden-tool` evaluator
+asserting the assistant doesn't call it for trivial requests. Use it as the
+model for a hand-authored pack, or scaffold your own:
+
+```
+$ mpqt init my-assistant
+init: wrote my-assistant/pack.yaml, my-assistant/example.yaml, my-assistant/schema.json
+```
+
+This writes `pack.yaml`, a commented, already-valid template table
+(`example.yaml`), and a local `schema.json` copy so any YAML-language-server
+editor (VS Code + Red Hat YAML, JetBrains, Neovim) gives completion and
+inline validation without needing this repo's own relative `$schema` path.
+Edit the template — paste your real system prompt and tools, replace the
+placeholder evaluator and scenario — then validate:
+
+```
+$ mpqt validate --execute packs/example
+validate: packs/example
+  --execute: 1 table(s) executed, 0 skipped
+```
+
+`validate` strictly loads every pack directory, runs `Document.Lint` (unlisted
+files, an `expect` block with no evaluator that enforces it, an unconsumed
+`run:` block — see "Known gaps" below), checks every tool/output schema
+against the portable JSON-Schema subset, and verifies the pack's digest
+against its committed `pack.digest` lockfile when one exists. `--execute`
+additionally smoke-runs every table's `script:` section offline through
+`pkg/run.Execute` — no network, no cost, useful in CI as a pack-level test
+independent of any live model. Run `mpqt schema` to print the JSON Schema and
+`mpqt evaluators` to list every evaluator kind:
+
+```
+$ mpqt evaluators
+KIND             OPTIONS         EVIDENCE                                                                              DOC
+forbidden-text   substrings      none required; a vacuous (no substrings) configuration errors rather than passing     asserts no forbidden substring appears in the assistant's text output
+forbidden-tool   tool            none required beyond the conversation trace itself                                    asserts a tool call with the given name was not made
+judge            rubric          model usage evidence recorded by the judge call itself                                scores the sample's conversation against a named rubric using a model judge
+max-duration     limit           timing evidence; Unverified when a scenario carries no recorded timing                fails when the longest recorded timed span exceeds a limit
+required-text    substrings      none required; a vacuous (no substrings) configuration errors rather than passing     asserts every required substring appears in the assistant's text output
+required-tool    tool            none required beyond the conversation trace itself                                    asserts a tool call with the given name was made
+schema-result    -               structured-output evidence; Unverified when a scenario produced no structured output  reports whether the subject's structured output satisfied its schema
+tool-error-rate  max-error-rate  tool-operation evidence; Unverified when a scenario makes no tool calls               measures the proportion of tool operations that errored, optionally failing above a threshold
+```
+
+Generate more candidate scenarios with an LLM (needs a committed, secret-free
+`gen.yaml` naming a provider/model, and that provider's API key in the
+environment — see `LLMConfig` in `pkg/cli/cli.go`):
+
+```
+mpqt gen --pack packs/example --table discipline -n 5 --config gen.yaml
+```
+
+`gen` prints a preflight token/cost estimate before the paid call, mechanically
+dedupes and validates candidates against the table's own evaluators, and
+appends survivors with a `generated-by: <model>/<date>` provenance label —
+review the diff before committing it.
+
+Run a pack against a live target (needs a `qual.Manifest` and a
+`profile.Profile`, each its own small YAML file — see `pkg/run/manifest.go`
+for the exact field mapping):
+
+```
+mpqt run --manifest target.yaml --profile enterprise.yaml --packs packs/example --require qualified
+```
+
+`run` performs the same capability preflight as `qual.Plan`, prints a
+token/cost estimate (unless `--skip-cost-estimate`), executes every runnable
+table against the live target, writes a canonical `reportjson` report, and
+exits nonzero (`ExitGateFailed`, 3) unless the resulting disposition meets
+`--require` (default `qualified`). Gate a candidate against an incumbent's
+prior report the same way CI would:
+
+```
+$ mpqt compare --candidate candidate-report.json --incumbent incumbent-report.json
+compare: example/discipline regressed=0 improved=1 unchanged=1 incompatible=0
+compare: total regressions=0
+```
+
+(exit 0 with no regressions; `ExitGateFailed` the moment any matched table's
+`regressed` count is nonzero.)
+
+### Known gaps in the YAML/CLI path
+
+- `TableFile.Run` (`run:` per-table trials/concurrency/timeout overrides) is
+  decoded and schema-documented but **not yet wired**: `pkg/run.Execute` and
+  the CLI only support one *global* `eval.RunConfig` (`mpqt run --trials
+  --concurrency`). A table that sets a non-zero `run:` block gets a
+  `Document.Lint` warning saying exactly that, rather than silently
+  pretending the override took effect. Per-table overrides remain a
+  documented future task.
+- `mpqt validate --api-format` dialect-projectability checking (beyond the
+  default portable-subset check) is not yet implemented; passing a non-empty
+  value prints a note rather than actually checking Gemini/other-dialect
+  projection.
+
+### Go + codepacks walkthrough
+
 The offline example in `examples/qualification/qualification_test.go` runs
-the structured-output pack against a scripted, deterministic target and gates
-on `profile.Qualified`:
+the structured-output pack (`pkg/codepacks/structuredoutput`) against a
+scripted, deterministic target and gates on `profile.Qualified` — no YAML, no
+CLI, just `qual.Pack` values and `pkg/mpqttest` inside `go test`:
 
 ```go
 func TestOfflineQualification(t *testing.T) {
@@ -121,6 +249,12 @@ tables — for example `operational-stability`'s latency table still runs
 against a manifest with no declared capabilities, while its tool-errors table
 is skipped.
 
+These five stay Go code permanently (`pkg/codepacks/`) — see "Quick start"
+above. The parallel YAML corpus under `packs/` currently ships one reference
+pack, `example` (dimension `capability`, requires `tools`), meant as a
+worked example for hand-authoring a pack rather than a transcription of the
+five built-ins; nothing requires the two corpora to mirror each other.
+
 ## Profile semantics
 
 A `profile.Profile` is a named, versioned set of mandatory requirements and
@@ -163,43 +297,55 @@ that every scorecard is honest about which class of evidence it rests on.
 
 ## Adding tests
 
-Today (Phase 1), packs are Go code: add a scenario to the relevant table in
-`pkg/codepacks/<name>/v1.go`, keep its ID unique pack-wide, and bump the pack
-`Revision` for any semantic change — `Pack.Validate()` and the pack's
-conforming/deviant tests enforce the rest. Custom evaluators implement
-`eval.Evaluator` and are wired at the composition root; custom packs are just
-values of `qual.Pack`, so private packs live in your own repo and run through
-the same `mpqttest.Run`.
+Both paths from "Quick start" are live, ongoing ways to add tests — pick
+whichever fits, per pack:
 
-The next phase ([design](docs/2026-07-23-phase2-packfiles-generation-cli-design.md))
-replaces Go literals with a hand-editable YAML corpus and adds an `mpqt` CLI,
-so adding tests becomes either of:
+- **Go pack** (`pkg/codepacks/<name>/v1.go`): add a scenario to the relevant
+  table, keep its ID unique pack-wide, and bump the pack `Revision` for any
+  semantic change — `Pack.Validate()` and the pack's conforming/deviant tests
+  enforce the rest. Custom evaluators implement `eval.Evaluator` and are wired
+  at the composition root; custom packs are just values of `qual.Pack`, so
+  private packs live in your own repo and run through the same
+  `mpqttest.Run`.
+- **YAML pack** (`packs/<name>/*.yaml`, `packs/example/` as the worked
+  example):
+  - **Manually**: append a scenario block to the table's YAML file and run
+    `mpqt validate`. Every file carries a `# yaml-language-server: $schema=…`
+    header, so any editor running the standard YAML language server (VS Code
+    via the Red Hat YAML extension, JetBrains, Neovim) gives completion,
+    hover documentation, and inline validation against the shipped JSON
+    Schema; `mpqt schema` prints it and `mpqt evaluators` lists every
+    evaluator kind, its options, and the evidence it needs.
+  - **With an LLM**: `mpqt gen --pack packs/example --table discipline -n 5
+    --config gen.yaml` generates candidate scenarios via structured output —
+    prompted with the table's real tool schemas, evaluator constraints, and
+    existing scenarios as seeds — then validates, dedupes, and appends them
+    with provenance labels. You review the git diff. Model choice lives in a
+    committed config file; the API key comes only from the environment.
 
-- **Manually**: append a scenario block to the table's YAML file and run
-  `mpqt validate`. Every file carries a
-  `# yaml-language-server: $schema=…` header, so any editor running the
-  standard YAML language server (VS Code via the Red Hat YAML extension,
-  JetBrains, Neovim) gives completion, hover documentation, and inline
-  validation against the shipped JSON Schema; `mpqt schema` prints it and
-  `mpqt evaluators` lists every evaluator kind, its options, and the evidence
-  it needs.
-- **With an LLM**: `mpqt gen --pack packs/tool-use --table discipline -n 5`
-  generates candidate scenarios via structured output — prompted with the
-  table's real tool schemas, evaluator constraints, and existing scenarios as
-  seeds — then validates, dedupes, and appends them with provenance labels.
-  You review the git diff. Model choice lives in a committed config file; the
-  API key comes only from the environment.
+Either way, bump the table's `revision:` (YAML) or the pack's `Revision`
+constant (Go) for any semantic change, and re-run `mpqt validate` (YAML) or
+the pack's own tests (Go) — a stale committed `pack.digest` lockfile fails
+`mpqt validate` on exactly this ("revision bump required").
 
 ## Roadmap
 
-Tracked in [the Phase 2 design](docs/2026-07-23-phase2-packfiles-generation-cli-design.md):
-the YAML pack corpus and generation CLI above, a live `mpqt run` with
-preflight token/cost estimation, `mpqt compare` as a CI model-upgrade gate,
-and custom packs (`mpqt init`): paste your own system prompt and tools,
-describe evaluation criteria as a plain-language rubric, and generate
-scenarios for *your* application rather than only the built-in packs. Later phases (per the original design): an egress and agentic-security
-lab, judge-backed rubric revisions of the capability/safety packs, and
-Markdown/HTML report renderers over the canonical `reportjson` form.
+Phase 2 (the [design doc](docs/2026-07-23-phase2-packfiles-generation-cli-design.md),
+now marked Implemented) delivered everything in "Quick start" above: the YAML
+pack corpus and `pkg/packfile` trust boundary, `mpqt gen`, a live `mpqt run`
+with preflight token/cost estimation, `mpqt compare` as a CI model-upgrade
+gate, and custom packs (`mpqt init`) — paste your own system prompt and
+tools, describe evaluation criteria as a plain-language rubric, and generate
+scenarios for *your* application rather than only the built-in packs. The
+design doc's "Amendments" section records where delivery departed from the
+original plan (Go packs kept permanently rather than deleted,
+`profile.Disposition.Rank()`, the `Lint()` unconsumed-`run:` warning, and the
+still-open per-table `RunSpec` gap noted above).
+
+Later phases (per the original design, still ahead): an egress and
+agentic-security lab, judge-backed rubric revisions of the capability/safety
+packs, and Markdown/HTML report renderers over the canonical `reportjson`
+form.
 
 ## Contributing
 

@@ -1,12 +1,64 @@
 # MPQT Phase 2 — Data-Driven Packs, LLM Generation, and CLI — Design
 
 **Date:** 2026-07-23
-**Status:** Draft for review
+**Status:** Implemented (see "Amendments — what actually shipped" below for
+where delivery departed from this document; the rest of this file is
+preserved as the original point-in-time design record and is **not** edited
+to match the final shape).
 **Depends on:** [MPQT Design Specification](../../harness/docs/plans/2026-07-18-model-power-quality-test-design.md),
 [Phase 1 detailed plan](../../harness/docs/plans/2026-07-22-mpqt-phase1-detailed-implementation.md) (implemented)
 **Supersedes:** the "Metadata-driven test packs" file-format details of the
 2026-07-18 design (JSONL rows → YAML tables; everything else in that section —
 explicit membership, strict codec, digests, provenance — carries forward).
+
+## Amendments — what actually shipped
+
+This section is the honest record of where the delivered repo departs from
+the design below. It is appended, not interleaved, per this repo's
+convention that a design doc is a point-in-time record rather than a living
+spec silently rewritten after the fact.
+
+1. **Go-coded packs were kept permanently, not migrated to YAML and
+   deleted.** The design below ("Data-driven packs", "Migration and
+   equivalence") specifies transcribing all five built-in packs to YAML and
+   deleting the `packs/<name>` Go constructors once a golden equivalence test
+   passes. Mid-execution, the user made an explicit decision to reverse
+   this: the five packs moved to `pkg/codepacks/` and stay there permanently
+   as Go code, alongside — not superseded by — the new YAML corpus under
+   `packs/`. Both are first-class, ongoing mechanisms for writing a pack;
+   `examples/qualification` (and its `go test` walkthrough) was **not**
+   deleted, contrary to "Module layout"'s and "Migration and equivalence"'s
+   text above. The YAML corpus therefore starts example-only: `packs/example/`
+   is a hand-authored reference pack (README "Quick start"), not a
+   transcription of the five built-ins.
+2. **Manifest/profile codec placement.** The design's "Module layout" lists
+   manifest/profile YAML codecs as living in `packfile`, "keeping all YAML in
+   one package". What shipped: `pkg/run/manifest.go` owns `DecodeManifest`/
+   `DecodeProfile`, but reuses `packfile`'s now-exported `StrictDecode`
+   function rather than duplicating strict-decode logic or importing
+   `gopkg.in/yaml.v3` a second time. This was flagged during Task 9 review:
+   the codecs' *location* moved to `pkg/run` (closer to their only caller,
+   `mpqt run`), but the yaml.v3 import stays confined to `pkg/packfile` as
+   the design intended — the confinement goal is met, just not via the
+   originally-sketched file placement.
+3. **`profile.Disposition.Rank()` (new, beyond this design).** The CLI's
+   `mpqt run --require` threshold gate needs to compare an achieved
+   disposition against a configured minimum. Rather than a CLI-local
+   ordering, `pkg/profile` gained an exported `Rank() int` method on
+   `Disposition` (worst-to-best: Rejected < Unverified < Restricted <
+   Qualified, -1 for an unrecognized value) so the ordering is canonical and
+   reusable, not duplicated at the CLI boundary.
+4. **`packfile.Document.Lint()` gained an unconsumed-`run:`-block check (new,
+   beyond this design).** `TableFile.Run` (the design's "optional per-table
+   RunConfig knobs", see the "Table files" YAML example's `run:` block) is
+   decoded and schema-documented, but per-table `RunSpec` consumption was
+   never actually wired into `pkg/run.Execute` or the CLI — only one
+   *global* `eval.RunConfig` exists today (`mpqt run --trials
+   --concurrency`). Rather than silently ship a YAML field that looks like
+   it does something but doesn't, `Lint()` warns when a table sets a
+   non-zero `run:` block, naming exactly which flags to use instead. This is
+   a real, still-open gap, not a completed-and-undocumented feature: wiring
+   per-table trials/concurrency/timeout overrides remains future work.
 
 ## Summary
 

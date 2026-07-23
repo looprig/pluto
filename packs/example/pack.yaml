@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# Minimal, hand-authored reference pack. This is what a real pack directory
+# looks like: identity plus explicit, ordered table membership. See the
+# README's "Quick start" and "Adding tests" sections for the walkthrough this
+# pack is the running example for.
+pack: example
+revision: v1
+tables:
+  - discipline.yaml
