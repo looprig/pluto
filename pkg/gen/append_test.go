@@ -59,6 +59,16 @@ func TestAppendPreservesCommentsAndAddsGeneratedByLabel(t *testing.T) {
 		t.Fatalf("Append() dropped the schema comment; got:\n%s", outStr)
 	}
 
+	// tu-200-generated has an empty Name and a nil Expect; the appended YAML
+	// must not carry zero-value boilerplate for either (no hand-authored
+	// scenario in this corpus has a `name:` or `expect:` key when unset).
+	if strings.Contains(outStr, `name: ""`) {
+		t.Errorf("Append() output carries a zero-value name key; got:\n%s", outStr)
+	}
+	if strings.Contains(outStr, "expect: null") {
+		t.Errorf("Append() output carries a zero-value expect key; got:\n%s", outStr)
+	}
+
 	tf, err := packfile.DecodeTable(bytes.NewReader(out))
 	if err != nil {
 		t.Fatalf("DecodeTable(Append() output): %v\noutput:\n%s", err, outStr)

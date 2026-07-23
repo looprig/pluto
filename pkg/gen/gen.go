@@ -165,6 +165,10 @@ func Generate(ctx context.Context, client inference.Client, req Request) (Result
 		return Result{}, fmt.Errorf("gen: table %q has no existing scenarios; Request.Intent is required to bootstrap generation", req.Table)
 	}
 
+	// NewRegistry always returns the built-in evaluator registry: Generate
+	// does not yet accept a caller-supplied *packfile.Registry, so a
+	// consumer's custom evaluator kinds (if registered elsewhere, e.g. by a
+	// future CLI composition root) will not appear as evidence in the prompt.
 	reg := packfile.NewRegistry()
 	prompt, err := buildPrompt(req.Doc, tf, reg, req)
 	if err != nil {
@@ -233,11 +237,28 @@ func postPass(result *Result, doc *packfile.Document, tf packfile.TableFile, bat
 		seen[spec.ID] = true
 
 		if _, err := spec.Scenario(defaultName, tf.Revision); err != nil {
-			result.Rejected = append(result.Rejected, Rejection{ID: spec.ID, Reason: err.Error()})
+			result.Rejected = append(result.Rejected, Rejection{ID: spec.ID, Reason: rejectionReason(err)})
 			continue
 		}
 		result.Accepted = append(result.Accepted, spec)
 	}
+}
+
+// rejectionReason extracts a flat, ID-free reason string from a
+// ScenarioSpec.Scenario validation error for Rejection.Reason. That call
+// wraps validation failures in a *packfile.Error whose Reason field already
+// holds the flat human-readable message (unlike Error(), which prepends a
+// "packfile: <id>: " prefix and would otherwise make Rejection.Reason
+// redundantly repeat Rejection.ID); using Reason directly keeps this
+// Reason's shape consistent with the other two hand-written duplicate-
+// rejection reasons above. Any other error type (not expected here) falls
+// back to err.Error().
+func rejectionReason(err error) string {
+	var perr *packfile.Error
+	if errors.As(err, &perr) {
+		return perr.Reason
+	}
+	return err.Error()
 }
 
 // findTable locates the table named name within doc, in doc.Tables order.

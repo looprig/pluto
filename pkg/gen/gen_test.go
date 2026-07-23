@@ -293,6 +293,15 @@ func TestGenerateRejectsCandidateFailingScenarioValidation(t *testing.T) {
 	if res.Rejected[0].Reason == "" {
 		t.Error("Rejected[0].Reason is empty")
 	}
+	// Reason must be a flat, ID-free phrase (Rejection.ID already carries the
+	// scenario ID) -- not packfile.Error's Error() string, which prepends a
+	// "packfile: <id>: " product/ID prefix.
+	if strings.Contains(res.Rejected[0].Reason, "packfile:") {
+		t.Errorf("Rejected[0].Reason = %q, must not contain the packfile: product prefix", res.Rejected[0].Reason)
+	}
+	if strings.Contains(res.Rejected[0].Reason, res.Rejected[0].ID) {
+		t.Errorf("Rejected[0].Reason = %q, must not repeat Rejection.ID (%q)", res.Rejected[0].Reason, res.Rejected[0].ID)
+	}
 }
 
 func TestGenerateRejectsNOutOfRangeWithoutInvoking(t *testing.T) {

@@ -87,19 +87,42 @@ func scenariosSequence(mapping *yaml.Node) (*yaml.Node, error) {
 	return seqNode, nil
 }
 
+// appendScenario mirrors packfile.ScenarioSpec's fields for encoding only,
+// with omitempty added on the fields that are legitimately optional (Name
+// defaults to "<pack>-<table>" when empty, Expect and Labels may be unset).
+// ScenarioSpec's own yaml tags have no omitempty (needed for strict-decode
+// round-tripping elsewhere), so marshaling it directly would write every
+// unset field out as noisy zero-value YAML (e.g. `name: ""`, `expect: null`)
+// that no hand-authored scenario carries; this local DTO-shaped type keeps
+// that fix confined to pkg/gen's append path rather than touching the
+// shared packfile.ScenarioSpec type.
+type appendScenario struct {
+	ID     string                 `yaml:"id"`
+	Name   string                 `yaml:"name,omitempty"`
+	Input  []packfile.MessageSpec `yaml:"input"`
+	Expect *packfile.ExpectSpec   `yaml:"expect,omitempty"`
+	Labels map[string]string      `yaml:"labels,omitempty"`
+}
+
 // scenarioNode renders spec (with generatedBy merged into its labels) as a
-// yaml.Node mapping matching the scenarios sequence's item shape: it reuses
-// packfile's own yaml tags on ScenarioSpec (yaml.Marshal) rather than hand-
-// building the node, then re-parses that YAML into a node so it can be
+// yaml.Node mapping matching the scenarios sequence's item shape: it converts
+// spec to the local appendScenario encoding DTO (yaml.Marshal) rather than
+// hand-building the node, then re-parses that YAML into a node so it can be
 // spliced into the surrounding tree.
 func scenarioNode(spec packfile.ScenarioSpec, generatedBy string) (*yaml.Node, error) {
-	merged := spec
 	labels := make(map[string]string, len(spec.Labels)+1)
 	for k, v := range spec.Labels {
 		labels[k] = v
 	}
 	labels[generatedByLabel] = generatedBy
-	merged.Labels = labels
+
+	merged := appendScenario{
+		ID:     spec.ID,
+		Name:   spec.Name,
+		Input:  spec.Input,
+		Expect: spec.Expect,
+		Labels: labels,
+	}
 
 	data, err := yaml.Marshal(merged)
 	if err != nil {
