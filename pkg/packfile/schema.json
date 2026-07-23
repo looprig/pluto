@@ -1,0 +1,687 @@
+{
+  "$id": "https://github.com/looprig/mpqt/blob/main/pkg/packfile/schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "anchorSpec": {
+      "additionalProperties": false,
+      "description": "a labeled reference point on the rubric's overall score scale.",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "label": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "score": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "score",
+        "label"
+      ],
+      "type": "object"
+    },
+    "criterionSpec": {
+      "additionalProperties": false,
+      "description": "one qualitative dimension a judge weighs when scoring a rubric.",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "max-score": {
+          "description": "must be greater than min-score.",
+          "type": "number"
+        },
+        "min-score": {
+          "description": "must be less than max-score.",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "min-score",
+        "max-score"
+      ],
+      "type": "object"
+    },
+    "environment": {
+      "additionalProperties": false,
+      "description": "the per-table stimulus applied to the target template.",
+      "properties": {
+        "output-schema": {
+          "$ref": "#/definitions/outputSchemaSpec"
+        },
+        "system": {
+          "description": "system prompt text.",
+          "type": "string"
+        },
+        "tool-choice": {
+          "description": "tool choice mode; \"\" and \"auto\" are equivalent, anything else besides \"required\" is rejected.",
+          "enum": [
+            "",
+            "auto",
+            "required"
+          ],
+          "type": "string"
+        },
+        "tools": {
+          "description": "model-visible tools offered to the target.",
+          "items": {
+            "$ref": "#/definitions/toolSpec"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "evaluatorSpec": {
+      "description": "one evaluator entry; \"kind\" selects the registered evaluator kind and its option shape.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "asserts no forbidden substring appears in the assistant's text output (evidence: none required; a vacuous (no substrings) configuration errors rather than passing)",
+          "properties": {
+            "kind": {
+              "const": "forbidden-text",
+              "type": "string"
+            },
+            "substrings": {
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "substrings"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "asserts a tool call with the given name was not made (evidence: none required beyond the conversation trace itself)",
+          "properties": {
+            "kind": {
+              "const": "forbidden-tool",
+              "type": "string"
+            },
+            "tool": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "tool"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "scores the sample's conversation against a named rubric using a model judge (evidence: model usage evidence recorded by the judge call itself)",
+          "properties": {
+            "kind": {
+              "const": "judge",
+              "type": "string"
+            },
+            "rubric": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "rubric"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "fails when the longest recorded timed span exceeds a limit (evidence: timing evidence; Unverified when a scenario carries no recorded timing)",
+          "properties": {
+            "kind": {
+              "const": "max-duration",
+              "type": "string"
+            },
+            "limit": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "limit"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "asserts every required substring appears in the assistant's text output (evidence: none required; a vacuous (no substrings) configuration errors rather than passing)",
+          "properties": {
+            "kind": {
+              "const": "required-text",
+              "type": "string"
+            },
+            "substrings": {
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "substrings"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "asserts a tool call with the given name was made (evidence: none required beyond the conversation trace itself)",
+          "properties": {
+            "kind": {
+              "const": "required-tool",
+              "type": "string"
+            },
+            "tool": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "tool"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "reports whether the subject's structured output satisfied its schema (evidence: structured-output evidence; Unverified when a scenario produced no structured output)",
+          "properties": {
+            "kind": {
+              "const": "schema-result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "measures the proportion of tool operations that errored, optionally failing above a threshold (evidence: tool-operation evidence; Unverified when a scenario makes no tool calls)",
+          "properties": {
+            "kind": {
+              "const": "tool-error-rate",
+              "type": "string"
+            },
+            "max-error-rate": {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "expectSpec": {
+      "additionalProperties": false,
+      "description": "mirrors eval.Expectation field-for-field; every field is independently optional.",
+      "properties": {
+        "expected-tool-calls": {
+          "items": {
+            "$ref": "#/definitions/toolCallExpectSpec"
+          },
+          "type": "array"
+        },
+        "forbidden-actions": {
+          "description": "actions a correct interaction must not take.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "policy-ref": {
+          "description": "references an external policy revision this scenario qualifies against.",
+          "type": "string"
+        },
+        "reference-answers": {
+          "description": "author-supplied golden answers for reference-based evaluators.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "required-facts": {
+          "description": "statements a correct answer must establish or support.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "structured-output": {
+          "$ref": "#/definitions/structuredExpectSpec"
+        }
+      },
+      "type": "object"
+    },
+    "messageSpec": {
+      "additionalProperties": false,
+      "description": "one input message; v1 supports text-only user/assistant turns.",
+      "properties": {
+        "role": {
+          "enum": [
+            "user",
+            "assistant"
+          ],
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "role"
+      ],
+      "type": "object"
+    },
+    "outputSchemaSpec": {
+      "additionalProperties": false,
+      "description": "the structured-output contract for the table.",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "schema": {
+          "description": "the output's JSON Schema, arbitrary YAML converted to canonical JSON at build time. portable JSON Schema subset (see inference.ValidateOutputSchema); provider-specific keywords are rejected, not translated",
+          "type": "object"
+        },
+        "strict": {
+          "description": "mirrors inference.OutputSchema.Strict.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "schema"
+      ],
+      "type": "object"
+    },
+    "packFile": {
+      "additionalProperties": false,
+      "description": "pack.yaml: identity plus explicit, ordered table membership.",
+      "properties": {
+        "pack": {
+          "description": "pack identity name (eval.Name).",
+          "minLength": 1,
+          "type": "string"
+        },
+        "revision": {
+          "description": "pack revision (eval.Revision).",
+          "minLength": 1,
+          "type": "string"
+        },
+        "tables": {
+          "description": "table file names, in the order they are loaded and built.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "pack",
+        "revision"
+      ],
+      "type": "object"
+    },
+    "rubricSpec": {
+      "additionalProperties": false,
+      "description": "a judge rubric expressed as data.",
+      "properties": {
+        "anchors": {
+          "description": "labeled reference points on the rubric's overall score scale.",
+          "items": {
+            "$ref": "#/definitions/anchorSpec"
+          },
+          "type": "array"
+        },
+        "criteria": {
+          "description": "the dimensions the judge weighs; must not be empty.",
+          "items": {
+            "$ref": "#/definitions/criterionSpec"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "definition": {
+          "description": "prose definition of the quality being judged.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "revision": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "scope": {
+          "description": "rubric scope; \"\" and \"case\" are equivalent.",
+          "enum": [
+            "",
+            "case",
+            "turn",
+            "session",
+            "run"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "revision",
+        "definition",
+        "criteria"
+      ],
+      "type": "object"
+    },
+    "runSpec": {
+      "additionalProperties": false,
+      "description": "optional per-table eval.RunConfig defaults.",
+      "properties": {
+        "concurrency": {
+          "type": "integer"
+        },
+        "evaluator-timeout": {
+          "description": "a Go duration string, e.g. \"30s\".",
+          "type": "string"
+        },
+        "target-timeout": {
+          "description": "a Go duration string, e.g. \"30s\".",
+          "type": "string"
+        },
+        "trials": {
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "scenarioSpec": {
+      "additionalProperties": false,
+      "description": "one test case.",
+      "properties": {
+        "expect": {
+          "$ref": "#/definitions/expectSpec"
+        },
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "input": {
+          "description": "the input message thread; must not be empty.",
+          "items": {
+            "$ref": "#/definitions/messageSpec"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "labels": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "free-form string labels.",
+          "type": "object"
+        },
+        "name": {
+          "description": "optional; defaults to \"\u003cpack\u003e-\u003ctable\u003e\".",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "input"
+      ],
+      "type": "object"
+    },
+    "scriptSpec": {
+      "additionalProperties": false,
+      "description": "an offline fixture reply for one scenario ID (mirrors qual/target.Script).",
+      "properties": {
+        "duration": {
+          "description": "a Go duration string, e.g. \"1.5s\".",
+          "type": "string"
+        },
+        "reply": {
+          "type": "string"
+        },
+        "structured": {
+          "$ref": "#/definitions/structuredSpec"
+        },
+        "structured-err": {
+          "$ref": "#/definitions/structuredErrSpec"
+        },
+        "tool-calls": {
+          "items": {
+            "$ref": "#/definitions/scriptToolCall"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "scriptToolCall": {
+      "additionalProperties": false,
+      "description": "one scripted tool call in a ScriptSpec.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "is-error": {
+          "type": "boolean"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "structuredErrSpec": {
+      "additionalProperties": false,
+      "description": "the scripted structured-output failure case.",
+      "properties": {
+        "reason": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "structuredExpectSpec": {
+      "additionalProperties": false,
+      "description": "asserts the interaction produces a terminal structured output conforming to a named schema revision.",
+      "properties": {
+        "schema": {
+          "description": "schema revision name (eval.Revision).",
+          "minLength": 1,
+          "type": "string"
+        },
+        "strict": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "schema"
+      ],
+      "type": "object"
+    },
+    "structuredSpec": {
+      "additionalProperties": false,
+      "description": "the scripted structured-output success case.",
+      "properties": {
+        "schema-name": {
+          "type": "string"
+        },
+        "schema-revision": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "tableFile": {
+      "additionalProperties": false,
+      "description": "one table file: a named, versioned scenario family sharing one evaluator set and one score dimension.",
+      "properties": {
+        "dimension": {
+          "description": "score dimension name (eval.Name) this table contributes to.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "environment": {
+          "$ref": "#/definitions/environment"
+        },
+        "evaluators": {
+          "description": "the evaluators applied to every scenario in this table; must not be empty.",
+          "items": {
+            "$ref": "#/definitions/evaluatorSpec"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "requires": {
+          "description": "capabilities the target must declare for this table to run (qual.Capability).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "revision": {
+          "description": "table revision (eval.Revision).",
+          "minLength": 1,
+          "type": "string"
+        },
+        "rubrics": {
+          "description": "judge rubrics defined by this table, referenced by name from a judge evaluator's rubric option.",
+          "items": {
+            "$ref": "#/definitions/rubricSpec"
+          },
+          "type": "array"
+        },
+        "run": {
+          "$ref": "#/definitions/runSpec"
+        },
+        "scenarios": {
+          "description": "the test cases in this table; must not be empty.",
+          "items": {
+            "$ref": "#/definitions/scenarioSpec"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "script": {
+          "additionalProperties": {
+            "$ref": "#/definitions/scriptSpec"
+          },
+          "description": "offline fixture replies keyed by scenario ID (qual/target.Script), for scripted target runs with no live model.",
+          "type": "object"
+        },
+        "table": {
+          "description": "table identity name (eval.Name).",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "table",
+        "revision",
+        "dimension",
+        "scenarios",
+        "evaluators"
+      ],
+      "type": "object"
+    },
+    "toolCallExpectSpec": {
+      "additionalProperties": false,
+      "description": "asserts a named tool is invoked a bounded number of times.",
+      "properties": {
+        "max": {
+          "description": "inclusive upper bound; omitted leaves the count unbounded above.",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "min": {
+          "description": "inclusive lower bound.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tool": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "tool"
+      ],
+      "type": "object"
+    },
+    "toolSpec": {
+      "additionalProperties": false,
+      "description": "one model-visible tool.",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "schema": {
+          "description": "the tool's argument schema, arbitrary YAML converted to canonical JSON at build time. portable JSON Schema subset (see inference.ValidateOutputSchema); provider-specific keywords are rejected, not translated",
+          "type": "object"
+        }
+      },
+      "required": [
+        "name",
+        "schema"
+      ],
+      "type": "object"
+    }
+  },
+  "description": "A pack.yaml identity/manifest file or one table file from an mpqt pack directory (pkg/packfile).",
+  "oneOf": [
+    {
+      "$ref": "#/definitions/packFile"
+    },
+    {
+      "$ref": "#/definitions/tableFile"
+    }
+  ],
+  "title": "mpqt pack file"
+}
