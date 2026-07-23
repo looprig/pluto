@@ -236,8 +236,9 @@ func (c LLMConfig) toModel() model.Model {
 	}
 }
 
-// loadLLMConfig strictly decodes path (via packfile.StrictDecode, keeping
-// yaml.v3 confined to packfile) into an LLMConfig.
+// loadLLMConfig strictly decodes path (via packfile.StrictDecode, reusing
+// packfile's decode logic rather than importing gopkg.in/yaml.v3 here)
+// into an LLMConfig.
 func loadLLMConfig(path string) (LLMConfig, error) {
 	f, err := os.Open(cleanPath(path))
 	if err != nil {

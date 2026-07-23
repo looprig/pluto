@@ -64,7 +64,9 @@ type manifestFile struct {
 // DecodeManifest strictly decodes r (via packfile.StrictDecode, so an
 // unknown field is rejected the same way the rest of the packfile YAML
 // corpus rejects one) into a qual.Manifest and validates it before
-// returning. yaml.v3 stays confined to packfile and this function.
+// returning. This package never imports gopkg.in/yaml.v3 itself, reusing
+// packfile's strict-decode logic instead; pkg/gen imports yaml.v3 directly
+// for an unrelated concern (encode-side yaml.Node surgery).
 func DecodeManifest(r io.Reader) (qual.Manifest, error) {
 	var mf manifestFile
 	if err := packfile.StrictDecode(r, &mf); err != nil {

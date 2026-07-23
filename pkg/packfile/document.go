@@ -211,10 +211,12 @@ func DecodePack(r io.Reader) (PackFile, error) {
 
 // StrictDecode strictly decodes r into out: unknown YAML fields are rejected
 // (yaml.v3's KnownFields(true)) and the input is bounded by MaxFileBytes. It
-// is the one place packfile's strict-decode behavior is implemented; every
-// caller in this package, and pkg/run's manifest/profile codecs (which reuse
-// this to keep yaml.v3 imports confined to packfile and those two decode
-// functions), route through it.
+// is the one place packfile's strict-decode logic is implemented; every
+// caller in this package, and pkg/run's manifest/profile codecs, route
+// through it rather than re-implementing strict decoding. This confines
+// decode logic to one implementation, not the gopkg.in/yaml.v3 import
+// itself: pkg/gen also imports yaml.v3 directly, for comment-preserving
+// yaml.Node surgery on the encode side, a different concern from decoding.
 func StrictDecode(r io.Reader, out any) error {
 	return strictDecode(r, out)
 }
