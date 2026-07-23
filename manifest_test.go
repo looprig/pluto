@@ -92,3 +92,34 @@ func TestManifestFingerprint(t *testing.T) {
 		t.Error("Fingerprint() on invalid manifest should error")
 	}
 }
+
+func TestManifestFingerprintCapabilityOrderIndependent(t *testing.T) {
+	t.Parallel()
+	ordered := validManifest()
+	ordered.Capabilities = []Capability{CapabilityTools, CapabilityImages}
+	reordered := validManifest()
+	reordered.Capabilities = []Capability{CapabilityImages, CapabilityTools}
+
+	fpOrdered, err := ordered.Fingerprint()
+	if err != nil {
+		t.Fatalf("Fingerprint() error = %v", err)
+	}
+	fpReordered, err := reordered.Fingerprint()
+	if err != nil {
+		t.Fatalf("Fingerprint() error = %v", err)
+	}
+	if fpOrdered != fpReordered {
+		t.Errorf("fingerprint depends on capability order: %q vs %q", fpOrdered, fpReordered)
+	}
+
+	// Fingerprint must not mutate the caller's slice while canonicalizing it.
+	original := []Capability{CapabilityImages, CapabilityTools}
+	m := validManifest()
+	m.Capabilities = original
+	if _, err := m.Fingerprint(); err != nil {
+		t.Fatalf("Fingerprint() error = %v", err)
+	}
+	if original[0] != CapabilityImages || original[1] != CapabilityTools {
+		t.Error("Fingerprint() mutated the manifest's Capabilities slice")
+	}
+}

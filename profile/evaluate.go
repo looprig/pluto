@@ -92,6 +92,10 @@ func Evaluate(card Card, p Profile) (Result, error) {
 	return res, nil
 }
 
+// check assumes r has already passed Requirement.Validate(); callers must not
+// skip that. Validate guarantees a subject's required bound pointers
+// (MaxFindingCount, MaxSeverityCount) are non-nil, which check dereferences
+// unconditionally below.
 func check(r Requirement, dims map[eval.Name]mpqt.DimensionScore, card Card) Outcome {
 	switch {
 	case r.Dimension != "":

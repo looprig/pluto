@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net"
 	"net/url"
+	"sort"
 	"unicode/utf8"
 
 	"github.com/looprig/eval"
@@ -184,13 +185,23 @@ func validateBaseURL(raw string) error {
 
 // Fingerprint returns a deterministic sha256 identity over the manifest's
 // canonical JSON form. It validates first so an ill-formed manifest can never
-// acquire an identity.
+// acquire an identity. Capabilities is order-independent (Validate only
+// rejects duplicates, not reordering), so the hash input sorts a copy of
+// Capabilities before marshaling; the receiver and any caller-owned slice are
+// left untouched.
 func (m Manifest) Fingerprint() (string, error) {
 	if err := m.Validate(); err != nil {
 		return "", err
 	}
+	canonical := m
+	if len(m.Capabilities) > 0 {
+		sorted := make([]Capability, len(m.Capabilities))
+		copy(sorted, m.Capabilities)
+		sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+		canonical.Capabilities = sorted
+	}
 	// A fixed struct with deterministic field order under encoding/json.
-	data, err := json.Marshal(m)
+	data, err := json.Marshal(canonical)
 	if err != nil {
 		return "", &ValidationError{Field: "Manifest", Reason: "not encodable"}
 	}
