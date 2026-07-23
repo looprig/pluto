@@ -17,7 +17,7 @@ import (
 	inferauth "github.com/looprig/inference/auth"
 	"github.com/looprig/inference/model"
 	"github.com/looprig/llm/auto"
-	"github.com/looprig/mpqt/packs/structuredoutput"
+	"github.com/looprig/mpqt/pkg/codepacks/structuredoutput"
 	"github.com/looprig/mpqt/pkg/mpqttest"
 	"github.com/looprig/mpqt/pkg/qual"
 )

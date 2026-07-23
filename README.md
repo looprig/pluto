@@ -109,11 +109,11 @@ cost-incurring example from generic process-boundary integration tests.
 
 | Pack | Revision | Dimension | Required capabilities |
 |---|---|---|---|
-| `core-capability` (`packs/capability`) | v1 | capability | none |
-| `tool-use` (`packs/tooluse`) | v1 | capability | `tools` |
-| `structured-output` (`packs/structuredoutput`) | v1 | capability | `structured_output` |
-| `safety-conduct` (`packs/safety`) | v1 | safety | none |
-| `operational-stability` (`packs/operational`) | v1 | operational | `tools` (tool-errors table only; latency needs none) |
+| `core-capability` (`pkg/codepacks/capability`) | v1 | capability | none |
+| `tool-use` (`pkg/codepacks/tooluse`) | v1 | capability | `tools` |
+| `structured-output` (`pkg/codepacks/structuredoutput`) | v1 | capability | `structured_output` |
+| `safety-conduct` (`pkg/codepacks/safety`) | v1 | safety | none |
+| `operational-stability` (`pkg/codepacks/operational`) | v1 | operational | `tools` (tool-errors table only; latency needs none) |
 
 Every pack's `V1()` constructor is pure (no I/O) and every table declares its
 own `Requires` capabilities independently, so `qual.Plan` can skip individual
@@ -164,7 +164,7 @@ that every scorecard is honest about which class of evidence it rests on.
 ## Adding tests
 
 Today (Phase 1), packs are Go code: add a scenario to the relevant table in
-`packs/<name>/v1.go`, keep its ID unique pack-wide, and bump the pack
+`pkg/codepacks/<name>/v1.go`, keep its ID unique pack-wide, and bump the pack
 `Revision` for any semantic change — `Pack.Validate()` and the pack's
 conforming/deviant tests enforce the rest. Custom evaluators implement
 `eval.Evaluator` and are wired at the composition root; custom packs are just

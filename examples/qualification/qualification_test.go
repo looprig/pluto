@@ -6,7 +6,7 @@ package qualification
 import (
 	"testing"
 
-	"github.com/looprig/mpqt/packs/structuredoutput"
+	"github.com/looprig/mpqt/pkg/codepacks/structuredoutput"
 	"github.com/looprig/mpqt/pkg/mpqttest"
 	"github.com/looprig/mpqt/pkg/profile"
 	"github.com/looprig/mpqt/pkg/qual"
