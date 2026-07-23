@@ -5,33 +5,33 @@ import (
 	"time"
 
 	"github.com/looprig/eval"
-	"github.com/looprig/mpqt"
 	"github.com/looprig/mpqt/internal/reporttest"
+	"github.com/looprig/mpqt/pkg/qual"
 )
 
-func candidateManifest() mpqt.Manifest {
-	return mpqt.Manifest{
+func candidateManifest() qual.Manifest {
+	return qual.Manifest{
 		TargetID:      "candidate",
-		Role:          mpqt.RoleCandidate,
+		Role:          qual.RoleCandidate,
 		Provider:      "acme",
 		Model:         "acme-1",
 		APIFormat:     "openai",
 		BaseURL:       "https://example.invalid/v1",
 		Revision:      "r-candidate",
-		EndpointClass: mpqt.EndpointRemote,
+		EndpointClass: qual.EndpointRemote,
 	}
 }
 
-func incumbentManifest() mpqt.Manifest {
-	return mpqt.Manifest{
+func incumbentManifest() qual.Manifest {
+	return qual.Manifest{
 		TargetID:      "incumbent",
-		Role:          mpqt.RoleIncumbent,
+		Role:          qual.RoleIncumbent,
 		Provider:      "acme",
 		Model:         "acme-0",
 		APIFormat:     "openai",
 		BaseURL:       "https://example.invalid/v1",
 		Revision:      "r-incumbent",
-		EndpointClass: mpqt.EndpointRemote,
+		EndpointClass: qual.EndpointRemote,
 	}
 }
 
@@ -84,12 +84,12 @@ func reportRev(t *testing.T, rev eval.Revision, status eval.AssessmentStatus) ev
 // bump between sides), a table present only on the candidate side, a table
 // present only on the incumbent side, and a table present on both sides' key
 // but skipped by the candidate.
-func buildScorecards(t *testing.T) (mpqt.Scorecard, mpqt.Scorecard) {
+func buildScorecards(t *testing.T) (qual.Scorecard, qual.Scorecard) {
 	t.Helper()
 
-	candidate := mpqt.Scorecard{
+	candidate := qual.Scorecard{
 		Manifest: candidateManifest(),
-		Results: []mpqt.TableResult{
+		Results: []qual.TableResult{
 			{Pack: "p", Table: "t-regress", Dimension: "capability",
 				Report: reporttest.Build(t, eval.StatusFail)},
 			{Pack: "p", Table: "t-improve", Dimension: "capability",
@@ -101,12 +101,12 @@ func buildScorecards(t *testing.T) (mpqt.Scorecard, mpqt.Scorecard) {
 			{Pack: "p", Table: "only-candidate", Dimension: "capability",
 				Report: reporttest.Build(t, eval.StatusPass)},
 			{Pack: "p", Table: "t-skip", Dimension: "capability",
-				Skipped: true, Missing: []mpqt.Capability{mpqt.CapabilityTools}},
+				Skipped: true, Missing: []qual.Capability{qual.CapabilityTools}},
 		},
 	}
-	incumbent := mpqt.Scorecard{
+	incumbent := qual.Scorecard{
 		Manifest: incumbentManifest(),
-		Results: []mpqt.TableResult{
+		Results: []qual.TableResult{
 			{Pack: "p", Table: "t-regress", Dimension: "capability",
 				Report: reporttest.Build(t, eval.StatusPass)},
 			{Pack: "p", Table: "t-improve", Dimension: "capability",
@@ -195,18 +195,18 @@ func TestCompare_RoleValidation(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		candidate mpqt.Scorecard
-		incumbent mpqt.Scorecard
+		candidate qual.Scorecard
+		incumbent qual.Scorecard
 	}{
 		{
 			name:      "both candidate",
-			candidate: withRole(candidate, mpqt.RoleCandidate),
-			incumbent: withRole(incumbent, mpqt.RoleCandidate),
+			candidate: withRole(candidate, qual.RoleCandidate),
+			incumbent: withRole(incumbent, qual.RoleCandidate),
 		},
 		{
 			name:      "swapped roles",
-			candidate: withRole(candidate, mpqt.RoleIncumbent),
-			incumbent: withRole(incumbent, mpqt.RoleCandidate),
+			candidate: withRole(candidate, qual.RoleIncumbent),
+			incumbent: withRole(incumbent, qual.RoleCandidate),
 		},
 	}
 	for _, tt := range tests {
@@ -219,7 +219,7 @@ func TestCompare_RoleValidation(t *testing.T) {
 	}
 }
 
-func withRole(sc mpqt.Scorecard, role mpqt.ModelRole) mpqt.Scorecard {
+func withRole(sc qual.Scorecard, role qual.ModelRole) qual.Scorecard {
 	sc.Manifest.Role = role
 	return sc
 }

@@ -5,28 +5,28 @@ import (
 	"testing"
 
 	"github.com/looprig/eval"
-	"github.com/looprig/mpqt"
-	fixtarget "github.com/looprig/mpqt/fixture/target"
-	"github.com/looprig/mpqt/mpqttest"
 	"github.com/looprig/mpqt/packs/structuredoutput"
-	"github.com/looprig/mpqt/profile"
+	"github.com/looprig/mpqt/pkg/mpqttest"
+	"github.com/looprig/mpqt/pkg/profile"
+	"github.com/looprig/mpqt/pkg/qual"
+	fixtarget "github.com/looprig/mpqt/pkg/qual/target"
 )
 
-func testManifest() mpqt.Manifest {
-	return mpqt.Manifest{
+func testManifest() qual.Manifest {
+	return qual.Manifest{
 		TargetID:      "offline-test",
-		Role:          mpqt.RoleCandidate,
+		Role:          qual.RoleCandidate,
 		Provider:      "test",
 		Model:         "fake",
 		APIFormat:     "openai",
 		BaseURL:       "https://example.invalid/v1",
 		Revision:      "r-fake",
-		EndpointClass: mpqt.EndpointRemote,
-		Capabilities:  []mpqt.Capability{mpqt.CapabilityStructuredOutput},
+		EndpointClass: qual.EndpointRemote,
+		Capabilities:  []qual.Capability{qual.CapabilityStructuredOutput},
 	}
 }
 
-func conformingScripts(pack mpqt.Pack) map[string]fixtarget.Script {
+func conformingScripts(pack qual.Pack) map[string]fixtarget.Script {
 	scripts := map[string]fixtarget.Script{}
 	for _, tbl := range pack.Tables {
 		for _, sc := range tbl.Scenarios {
@@ -42,7 +42,7 @@ func conformingScripts(pack mpqt.Pack) map[string]fixtarget.Script {
 	return scripts
 }
 
-func deviantScripts(pack mpqt.Pack) map[string]fixtarget.Script {
+func deviantScripts(pack qual.Pack) map[string]fixtarget.Script {
 	scripts := map[string]fixtarget.Script{}
 	for _, tbl := range pack.Tables {
 		for _, sc := range tbl.Scenarios {
@@ -73,7 +73,7 @@ func TestRun_ConformingTargetQualifies(t *testing.T) {
 	pack := structuredoutput.V1()
 	card := mpqttest.Run(t, mpqttest.RunSpec{
 		Manifest: testManifest(),
-		Packs:    []mpqt.Pack{pack},
+		Packs:    []qual.Pack{pack},
 		Target:   fixtarget.NewScripted("offline-test", conformingScripts(pack)),
 	})
 	mpqttest.RequireDisposition(t, card, requirementProfile(90), profile.Qualified)
@@ -84,7 +84,7 @@ func TestRun_DeviantTargetTripsMinScore(t *testing.T) {
 	pack := structuredoutput.V1()
 	card := mpqttest.Run(t, mpqttest.RunSpec{
 		Manifest: testManifest(),
-		Packs:    []mpqt.Pack{pack},
+		Packs:    []qual.Pack{pack},
 		Target:   fixtarget.NewScripted("offline-test", deviantScripts(pack)),
 	})
 
@@ -106,7 +106,7 @@ func TestRun_TrialsMultipliesSamples(t *testing.T) {
 	const trials = 3
 	card := mpqttest.Run(t, mpqttest.RunSpec{
 		Manifest: testManifest(),
-		Packs:    []mpqt.Pack{pack},
+		Packs:    []qual.Pack{pack},
 		Target:   fixtarget.NewScripted("offline-test", conformingScripts(pack)),
 		Trials:   trials,
 	})
@@ -137,7 +137,7 @@ func TestRun_SkippedTableRecordsMissingCapability(t *testing.T) {
 	// proves the skip really did skip execution.
 	card := mpqttest.Run(t, mpqttest.RunSpec{
 		Manifest: manifest,
-		Packs:    []mpqt.Pack{pack},
+		Packs:    []qual.Pack{pack},
 		Target:   fixtarget.NewScripted("offline-test", nil),
 	})
 
@@ -148,7 +148,7 @@ func TestRun_SkippedTableRecordsMissingCapability(t *testing.T) {
 	if !res.Skipped {
 		t.Fatalf("TableResult.Skipped = false, want true (manifest declares no capabilities)")
 	}
-	wantMissing := []mpqt.Capability{mpqt.CapabilityStructuredOutput}
+	wantMissing := []qual.Capability{qual.CapabilityStructuredOutput}
 	if !reflect.DeepEqual(res.Missing, wantMissing) {
 		t.Errorf("Missing = %+v, want %+v", res.Missing, wantMissing)
 	}

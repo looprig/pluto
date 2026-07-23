@@ -6,11 +6,11 @@ package qualification
 import (
 	"testing"
 
-	"github.com/looprig/mpqt"
-	fixtarget "github.com/looprig/mpqt/fixture/target"
-	"github.com/looprig/mpqt/mpqttest"
 	"github.com/looprig/mpqt/packs/structuredoutput"
-	"github.com/looprig/mpqt/profile"
+	"github.com/looprig/mpqt/pkg/mpqttest"
+	"github.com/looprig/mpqt/pkg/profile"
+	"github.com/looprig/mpqt/pkg/qual"
+	fixtarget "github.com/looprig/mpqt/pkg/qual/target"
 )
 
 func TestOfflineQualification(t *testing.T) {
@@ -28,14 +28,14 @@ func TestOfflineQualification(t *testing.T) {
 		}
 	}
 	card := mpqttest.Run(t, mpqttest.RunSpec{
-		Manifest: mpqt.Manifest{
-			TargetID: "offline-example", Role: mpqt.RoleCandidate,
+		Manifest: qual.Manifest{
+			TargetID: "offline-example", Role: qual.RoleCandidate,
 			Provider: "test", Model: "fake", APIFormat: "openai",
 			BaseURL: "https://example.invalid/v1", Revision: "r-fake",
-			EndpointClass: mpqt.EndpointRemote,
-			Capabilities:  []mpqt.Capability{mpqt.CapabilityStructuredOutput},
+			EndpointClass: qual.EndpointRemote,
+			Capabilities:  []qual.Capability{qual.CapabilityStructuredOutput},
 		},
-		Packs:  []mpqt.Pack{pack},
+		Packs:  []qual.Pack{pack},
 		Target: fixtarget.NewScripted("offline-example", scripts),
 	})
 	minScore := 90.0

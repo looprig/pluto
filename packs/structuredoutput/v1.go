@@ -7,7 +7,7 @@ import (
 	"github.com/looprig/core/content"
 	"github.com/looprig/eval"
 	"github.com/looprig/eval/exact"
-	"github.com/looprig/mpqt"
+	"github.com/looprig/mpqt/pkg/qual"
 )
 
 // Revision is the pack revision. Any semantic change to scenarios or
@@ -18,15 +18,15 @@ const Revision eval.Revision = "v1"
 const dimension eval.Name = "capability"
 
 // V1 constructs the structured-output pack. Construction is pure: no I/O.
-func V1() mpqt.Pack {
-	return mpqt.Pack{
+func V1() qual.Pack {
+	return qual.Pack{
 		Name:     "structured-output",
 		Revision: Revision,
-		Tables: []mpqt.Table{{
+		Tables: []qual.Table{{
 			Name:      "conformance",
 			Revision:  Revision,
 			Dimension: dimension,
-			Requires:  []mpqt.Capability{mpqt.CapabilityStructuredOutput},
+			Requires:  []qual.Capability{qual.CapabilityStructuredOutput},
 			Scenarios: scenarios(),
 			Evaluators: []eval.Evaluator{
 				exact.SchemaResult(),

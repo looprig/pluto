@@ -2,14 +2,14 @@ package profile
 
 import (
 	"github.com/looprig/eval"
-	"github.com/looprig/mpqt"
+	"github.com/looprig/mpqt/pkg/qual"
 )
 
 // Card is the read-only view of a scorecard that profile evaluation consumes.
-// mpqt.Scorecard satisfies it once Task 12 adds FindingCount/SeverityCount;
+// qual.Scorecard satisfies it once Task 12 adds FindingCount/SeverityCount;
 // tests may substitute a fake.
 type Card interface {
-	Dimensions() ([]mpqt.DimensionScore, error)
+	Dimensions() ([]qual.DimensionScore, error)
 	FindingCount(code eval.FindingCode) int
 	SeverityCount(s eval.Severity) int
 }
@@ -57,7 +57,7 @@ func Evaluate(card Card, p Profile) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	byName := make(map[eval.Name]mpqt.DimensionScore, len(dims))
+	byName := make(map[eval.Name]qual.DimensionScore, len(dims))
 	for _, d := range dims {
 		byName[d.Dimension] = d
 	}
@@ -96,7 +96,7 @@ func Evaluate(card Card, p Profile) (Result, error) {
 // skip that. Validate guarantees a subject's required bound pointers
 // (MaxFindingCount, MaxSeverityCount) are non-nil, which check dereferences
 // unconditionally below.
-func check(r Requirement, dims map[eval.Name]mpqt.DimensionScore, card Card) Outcome {
+func check(r Requirement, dims map[eval.Name]qual.DimensionScore, card Card) Outcome {
 	switch {
 	case r.Dimension != "":
 		d, ok := dims[r.Dimension]

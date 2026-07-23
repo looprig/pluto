@@ -10,7 +10,7 @@ import (
 	"github.com/looprig/core/content"
 	"github.com/looprig/eval"
 	"github.com/looprig/eval/exact"
-	"github.com/looprig/mpqt"
+	"github.com/looprig/mpqt/pkg/qual"
 )
 
 // Revision is the pack revision. Any semantic change to scenarios or
@@ -32,11 +32,11 @@ const longPromptLines = 40
 const dimension eval.Name = "operational"
 
 // V1 constructs the operational-stability pack. Construction is pure: no I/O.
-func V1() mpqt.Pack {
-	return mpqt.Pack{
+func V1() qual.Pack {
+	return qual.Pack{
 		Name:     "operational-stability",
 		Revision: Revision,
-		Tables: []mpqt.Table{
+		Tables: []qual.Table{
 			{
 				Name:      "latency",
 				Revision:  Revision,
@@ -50,7 +50,7 @@ func V1() mpqt.Pack {
 				Name:      "tool-errors",
 				Revision:  Revision,
 				Dimension: dimension,
-				Requires:  []mpqt.Capability{mpqt.CapabilityTools},
+				Requires:  []qual.Capability{qual.CapabilityTools},
 				Scenarios: toolErrorScenarios(),
 				Evaluators: []eval.Evaluator{
 					exact.ToolErrorRate(exact.MaxErrorRate(maxToolErrorRate)),

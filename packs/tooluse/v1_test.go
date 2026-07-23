@@ -6,8 +6,8 @@ import (
 
 	"github.com/looprig/eval"
 	"github.com/looprig/eval/evaltest"
-	"github.com/looprig/mpqt"
-	fixtarget "github.com/looprig/mpqt/fixture/target"
+	"github.com/looprig/mpqt/pkg/qual"
+	fixtarget "github.com/looprig/mpqt/pkg/qual/target"
 )
 
 func TestPackV1Valid(t *testing.T) {
@@ -54,7 +54,7 @@ func TestPackV1AgainstConformingTarget(t *testing.T) {
 		"tu-102-forbidden-shell": {Reply: "This is a short summary of the text."},
 	}
 	target := fixtarget.NewScripted("conforming", scripts)
-	plans, err := mpqt.Plan(p, manifestForTest())
+	plans, err := qual.Plan(p, manifestForTest())
 	if err != nil {
 		t.Fatalf("Plan() error = %v", err)
 	}
@@ -90,7 +90,7 @@ func TestPackV1AgainstDeviantTarget(t *testing.T) {
 		},
 	}
 	target := fixtarget.NewScripted("deviant", scripts)
-	plans, err := mpqt.Plan(p, manifestForTest())
+	plans, err := qual.Plan(p, manifestForTest())
 	if err != nil {
 		t.Fatalf("Plan() error = %v", err)
 	}
@@ -106,12 +106,12 @@ func TestPackV1AgainstDeviantTarget(t *testing.T) {
 	}
 }
 
-func manifestForTest() mpqt.Manifest {
-	return mpqt.Manifest{
-		TargetID: "conforming", Role: mpqt.RoleCandidate,
+func manifestForTest() qual.Manifest {
+	return qual.Manifest{
+		TargetID: "conforming", Role: qual.RoleCandidate,
 		Provider: "test", Model: "fake", APIFormat: "openai",
 		BaseURL: "https://example.invalid/v1", Revision: "r-fake",
-		EndpointClass: mpqt.EndpointRemote,
-		Capabilities:  []mpqt.Capability{mpqt.CapabilityTools},
+		EndpointClass: qual.EndpointRemote,
+		Capabilities:  []qual.Capability{qual.CapabilityTools},
 	}
 }

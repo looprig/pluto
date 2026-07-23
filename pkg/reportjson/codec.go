@@ -14,8 +14,8 @@ import (
 
 	"github.com/looprig/eval"
 	evalreportjson "github.com/looprig/eval/reportjson"
-	"github.com/looprig/mpqt"
-	"github.com/looprig/mpqt/profile"
+	"github.com/looprig/mpqt/pkg/profile"
+	"github.com/looprig/mpqt/pkg/qual"
 )
 
 // Version is the sole wire version this codec implements. It is read FIRST
@@ -124,10 +124,10 @@ type profileResultJSON struct {
 // Decoded is the strict reconstruction of one encoded document.
 type Decoded struct {
 	Version      string
-	Manifest     mpqt.Manifest
+	Manifest     qual.Manifest
 	Fingerprint  string
-	Dimensions   []mpqt.DimensionScore
-	StatusRollup mpqt.StatusRollup
+	Dimensions   []qual.DimensionScore
+	StatusRollup qual.StatusRollup
 	Tables       []DecodedTable
 	Profile      *profile.Result
 }
@@ -139,7 +139,7 @@ type Decoded struct {
 type DecodedTable struct {
 	Pack, Table, Dimension eval.Name
 	Skipped                bool
-	Missing                []mpqt.Capability
+	Missing                []qual.Capability
 	Report                 eval.Report
 }
 
@@ -153,7 +153,7 @@ type DecodedTable struct {
 // report as the bytes eval's own reportjson.Encode produces. result may be
 // nil; the wire form then omits the profile entry entirely. Encode is
 // deterministic: the same card and result always produce identical bytes.
-func Encode(card mpqt.Scorecard, result *profile.Result) ([]byte, error) {
+func Encode(card qual.Scorecard, result *profile.Result) ([]byte, error) {
 	if err := card.Manifest.Validate(); err != nil {
 		return nil, err
 	}
@@ -199,7 +199,7 @@ func Encode(card mpqt.Scorecard, result *profile.Result) ([]byte, error) {
 	return out, nil
 }
 
-func projectManifest(m mpqt.Manifest) manifestJSON {
+func projectManifest(m qual.Manifest) manifestJSON {
 	caps := make([]string, len(m.Capabilities))
 	for i, c := range m.Capabilities {
 		caps[i] = string(c)
@@ -218,7 +218,7 @@ func projectManifest(m mpqt.Manifest) manifestJSON {
 	}
 }
 
-func projectDimensions(dims []mpqt.DimensionScore) []dimensionJSON {
+func projectDimensions(dims []qual.DimensionScore) []dimensionJSON {
 	out := make([]dimensionJSON, len(dims))
 	for i, d := range dims {
 		out[i] = dimensionJSON{
@@ -230,7 +230,7 @@ func projectDimensions(dims []mpqt.DimensionScore) []dimensionJSON {
 	return out
 }
 
-func projectStatusRollup(r mpqt.StatusRollup) statusRollupJSON {
+func projectStatusRollup(r qual.StatusRollup) statusRollupJSON {
 	var byStatus map[string]int
 	if len(r.ByStatus) > 0 {
 		byStatus = make(map[string]int, len(r.ByStatus))
@@ -241,7 +241,7 @@ func projectStatusRollup(r mpqt.StatusRollup) statusRollupJSON {
 	return statusRollupJSON{Samples: r.Samples, TargetErrors: r.TargetErrors, ByStatus: byStatus}
 }
 
-func projectTables(results []mpqt.TableResult) ([]tableEntryJSON, error) {
+func projectTables(results []qual.TableResult) ([]tableEntryJSON, error) {
 	out := make([]tableEntryJSON, len(results))
 	for i, res := range results {
 		missing := make([]string, len(res.Missing))
@@ -373,27 +373,27 @@ func reconstruct(rj reportJSON) (Decoded, error) {
 	}, nil
 }
 
-func reconstructManifest(mj manifestJSON) (mpqt.Manifest, error) {
-	caps := make([]mpqt.Capability, len(mj.Capabilities))
+func reconstructManifest(mj manifestJSON) (qual.Manifest, error) {
+	caps := make([]qual.Capability, len(mj.Capabilities))
 	for i, c := range mj.Capabilities {
-		caps[i] = mpqt.Capability(c)
+		caps[i] = qual.Capability(c)
 	}
-	m := mpqt.Manifest{
-		TargetID: mj.TargetID, Role: mpqt.ModelRole(mj.Role), Provider: mj.Provider,
+	m := qual.Manifest{
+		TargetID: mj.TargetID, Role: qual.ModelRole(mj.Role), Provider: mj.Provider,
 		Model: mj.Model, APIFormat: mj.APIFormat, BaseURL: mj.BaseURL, Effort: mj.Effort,
-		Revision: eval.Revision(mj.Revision), EndpointClass: mpqt.EndpointClass(mj.EndpointClass),
+		Revision: eval.Revision(mj.Revision), EndpointClass: qual.EndpointClass(mj.EndpointClass),
 		Capabilities: caps,
 	}
 	if err := m.Validate(); err != nil {
-		return mpqt.Manifest{}, &InvalidReportError{Cause: err}
+		return qual.Manifest{}, &InvalidReportError{Cause: err}
 	}
 	return m, nil
 }
 
-func reconstructDimensions(djs []dimensionJSON) []mpqt.DimensionScore {
-	out := make([]mpqt.DimensionScore, len(djs))
+func reconstructDimensions(djs []dimensionJSON) []qual.DimensionScore {
+	out := make([]qual.DimensionScore, len(djs))
 	for i, d := range djs {
-		out[i] = mpqt.DimensionScore{
+		out[i] = qual.DimensionScore{
 			Dimension: eval.Name(d.Dimension), Score: d.Score, Coverage: d.Coverage,
 			Verdicts: d.Verdicts, Assessments: d.Assessments,
 			SkippedTables: d.SkippedTables, Undecided: d.Undecided,
@@ -402,7 +402,7 @@ func reconstructDimensions(djs []dimensionJSON) []mpqt.DimensionScore {
 	return out
 }
 
-func reconstructStatusRollup(rj statusRollupJSON) mpqt.StatusRollup {
+func reconstructStatusRollup(rj statusRollupJSON) qual.StatusRollup {
 	var byStatus map[eval.AssessmentStatus]int
 	if len(rj.ByStatus) > 0 {
 		byStatus = make(map[eval.AssessmentStatus]int, len(rj.ByStatus))
@@ -410,15 +410,15 @@ func reconstructStatusRollup(rj statusRollupJSON) mpqt.StatusRollup {
 			byStatus[eval.AssessmentStatus(st)] = n
 		}
 	}
-	return mpqt.StatusRollup{Samples: rj.Samples, TargetErrors: rj.TargetErrors, ByStatus: byStatus}
+	return qual.StatusRollup{Samples: rj.Samples, TargetErrors: rj.TargetErrors, ByStatus: byStatus}
 }
 
 func reconstructTables(tjs []tableEntryJSON) ([]DecodedTable, error) {
 	out := make([]DecodedTable, len(tjs))
 	for i, tj := range tjs {
-		missing := make([]mpqt.Capability, len(tj.Missing))
+		missing := make([]qual.Capability, len(tj.Missing))
 		for j, c := range tj.Missing {
-			mc := mpqt.Capability(c)
+			mc := qual.Capability(c)
 			if err := mc.Validate(); err != nil {
 				return nil, &InvalidReportError{Cause: err}
 			}

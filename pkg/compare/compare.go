@@ -11,7 +11,7 @@ import (
 
 	"github.com/looprig/eval"
 	evalcompare "github.com/looprig/eval/compare"
-	"github.com/looprig/mpqt"
+	"github.com/looprig/mpqt/pkg/qual"
 )
 
 // Side names why a table failed to align between the two scorecards.
@@ -36,7 +36,7 @@ func (s Side) Validate() error {
 	case SideCandidateOnly, SideIncumbentOnly, SideSkipped:
 		return nil
 	}
-	return &mpqt.ValidationError{Field: "Side", Reason: "unknown value"}
+	return &qual.ValidationError{Field: "Side", Reason: "unknown value"}
 }
 
 // UnmatchedTable is a (Pack, Table) that could not be compared, with the
@@ -67,8 +67,8 @@ type TableComparison struct {
 // Comparison is the full candidate-vs-incumbent diff: matched tables plus
 // every table that could not be matched.
 type Comparison struct {
-	Candidate       mpqt.Manifest
-	Incumbent       mpqt.Manifest
+	Candidate       qual.Manifest
+	Incumbent       qual.Manifest
 	Tables          []TableComparison
 	UnmatchedTables []UnmatchedTable
 }
@@ -77,8 +77,8 @@ type Comparison struct {
 // required of its position in the comparison (candidate or incumbent).
 type RoleMismatchError struct {
 	Field string
-	Role  mpqt.ModelRole
-	Want  mpqt.ModelRole
+	Role  qual.ModelRole
+	Want  qual.ModelRole
 }
 
 func (e *RoleMismatchError) Error() string {
@@ -90,24 +90,24 @@ type tableKey struct {
 }
 
 // Compare validates both manifests (structurally, and that candidate carries
-// mpqt.RoleCandidate and incumbent carries mpqt.RoleIncumbent) before any
+// qual.RoleCandidate and incumbent carries qual.RoleIncumbent) before any
 // comparison work happens, then aligns tables by (Pack, Table) key. A table
 // present on only one side, or skipped on either side, surfaces in
 // UnmatchedTables rather than being dropped. Every remaining matched pair is
 // diffed with evalcompare.Compare (baseline=incumbent, candidate=candidate)
 // and rolled up per table.
-func Compare(candidate, incumbent mpqt.Scorecard) (Comparison, error) {
+func Compare(candidate, incumbent qual.Scorecard) (Comparison, error) {
 	if err := candidate.Manifest.Validate(); err != nil {
 		return Comparison{}, err
 	}
 	if err := incumbent.Manifest.Validate(); err != nil {
 		return Comparison{}, err
 	}
-	if candidate.Manifest.Role != mpqt.RoleCandidate {
-		return Comparison{}, &RoleMismatchError{Field: "candidate.Manifest.Role", Role: candidate.Manifest.Role, Want: mpqt.RoleCandidate}
+	if candidate.Manifest.Role != qual.RoleCandidate {
+		return Comparison{}, &RoleMismatchError{Field: "candidate.Manifest.Role", Role: candidate.Manifest.Role, Want: qual.RoleCandidate}
 	}
-	if incumbent.Manifest.Role != mpqt.RoleIncumbent {
-		return Comparison{}, &RoleMismatchError{Field: "incumbent.Manifest.Role", Role: incumbent.Manifest.Role, Want: mpqt.RoleIncumbent}
+	if incumbent.Manifest.Role != qual.RoleIncumbent {
+		return Comparison{}, &RoleMismatchError{Field: "incumbent.Manifest.Role", Role: incumbent.Manifest.Role, Want: qual.RoleIncumbent}
 	}
 
 	candByKey := indexResults(candidate.Results)
@@ -151,15 +151,15 @@ func Compare(candidate, incumbent mpqt.Scorecard) (Comparison, error) {
 	return out, nil
 }
 
-func indexResults(results []mpqt.TableResult) map[tableKey]mpqt.TableResult {
-	out := make(map[tableKey]mpqt.TableResult, len(results))
+func indexResults(results []qual.TableResult) map[tableKey]qual.TableResult {
+	out := make(map[tableKey]qual.TableResult, len(results))
 	for _, r := range results {
 		out[tableKey{Pack: r.Pack, Table: r.Table}] = r
 	}
 	return out
 }
 
-func unionTableKeys(a, b map[tableKey]mpqt.TableResult) []tableKey {
+func unionTableKeys(a, b map[tableKey]qual.TableResult) []tableKey {
 	seen := make(map[tableKey]struct{}, len(a)+len(b))
 	keys := make([]tableKey, 0, len(a)+len(b))
 	for k := range a {
@@ -186,7 +186,7 @@ func unionTableKeys(a, b map[tableKey]mpqt.TableResult) []tableKey {
 // compareTable diffs one matched (Pack, Table) pair. incumbent is the
 // baseline; candidate is the candidate, matching evalcompare.Compare's
 // (baseline, candidate) argument order.
-func compareTable(candidate, incumbent mpqt.TableResult) (TableComparison, error) {
+func compareTable(candidate, incumbent qual.TableResult) (TableComparison, error) {
 	result, err := evalcompare.Compare(incumbent.Report, candidate.Report)
 	if err != nil {
 		return TableComparison{}, err

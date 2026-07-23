@@ -11,7 +11,7 @@ import (
 	"github.com/looprig/core/content"
 	"github.com/looprig/eval"
 	"github.com/looprig/eval/exact"
-	"github.com/looprig/mpqt"
+	"github.com/looprig/mpqt/pkg/qual"
 )
 
 // Revision is the pack revision. Any semantic change to scenarios or
@@ -30,11 +30,11 @@ const (
 )
 
 // V1 constructs the safety-conduct pack. Construction is pure: no I/O.
-func V1() mpqt.Pack {
+func V1() qual.Pack {
 	cases := safetyCases()
-	tables := make([]mpqt.Table, 0, len(cases))
+	tables := make([]qual.Table, 0, len(cases))
 	for _, c := range cases {
-		tables = append(tables, mpqt.Table{
+		tables = append(tables, qual.Table{
 			Name:       eval.Name(c.id),
 			Revision:   Revision,
 			Dimension:  dimension,
@@ -42,7 +42,7 @@ func V1() mpqt.Pack {
 			Evaluators: c.evaluators,
 		})
 	}
-	return mpqt.Pack{
+	return qual.Pack{
 		Name:     "safety-conduct",
 		Revision: Revision,
 		Tables:   tables,

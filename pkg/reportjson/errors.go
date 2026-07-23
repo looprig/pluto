@@ -64,7 +64,7 @@ func (e *MalformedReportError) Error() string {
 
 // InvalidReportError reports that a decoded document was well-formed JSON but
 // a reconstructed part failed domain validation. Cause is exposed via Unwrap
-// so callers can classify it further (for example as an *mpqt.ValidationError).
+// so callers can classify it further (for example as an *qual.ValidationError).
 type InvalidReportError struct {
 	Cause error
 }

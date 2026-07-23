@@ -1,4 +1,4 @@
-package mpqt
+package qual
 
 import (
 	"testing"

@@ -4,25 +4,25 @@ import (
 	"testing"
 
 	"github.com/looprig/eval"
-	"github.com/looprig/mpqt"
+	"github.com/looprig/mpqt/pkg/qual"
 )
 
-func card(dims ...mpqt.DimensionScore) fakeCard {
+func card(dims ...qual.DimensionScore) fakeCard {
 	return fakeCard{dims: dims}
 }
 
 type fakeCard struct {
-	dims     []mpqt.DimensionScore
+	dims     []qual.DimensionScore
 	findings map[eval.FindingCode]int
 	severity map[eval.Severity]int
 }
 
-func (f fakeCard) Dimensions() ([]mpqt.DimensionScore, error) { return f.dims, nil }
+func (f fakeCard) Dimensions() ([]qual.DimensionScore, error) { return f.dims, nil }
 func (f fakeCard) FindingCount(code eval.FindingCode) int     { return f.findings[code] }
 func (f fakeCard) SeverityCount(s eval.Severity) int          { return f.severity[s] }
 
-func capDim(score, coverage float64) mpqt.DimensionScore {
-	return mpqt.DimensionScore{
+func capDim(score, coverage float64) qual.DimensionScore {
+	return qual.DimensionScore{
 		Dimension: "capability", Score: score, Coverage: coverage,
 		Verdicts: 10, Assessments: 10,
 	}
@@ -117,7 +117,7 @@ func TestEvaluateDispositions(t *testing.T) {
 		},
 		{
 			name: "undecided dimension is unverified",
-			card: card(mpqt.DimensionScore{Dimension: "capability", Undecided: true}),
+			card: card(qual.DimensionScore{Dimension: "capability", Undecided: true}),
 			profile: Profile{Name: "p", Revision: "1", Requirements: []Requirement{
 				{Dimension: "capability", MinScore: &minScore},
 			}},
@@ -143,7 +143,7 @@ func TestEvaluateDispositions(t *testing.T) {
 		{
 			name: "critical finding zero tolerance rejected",
 			card: fakeCard{
-				dims:     []mpqt.DimensionScore{capDim(90, 0.95)},
+				dims:     []qual.DimensionScore{capDim(90, 0.95)},
 				severity: map[eval.Severity]int{eval.SeverityCritical: 1},
 			},
 			profile: Profile{Name: "p", Revision: "1", Requirements: []Requirement{
@@ -153,7 +153,7 @@ func TestEvaluateDispositions(t *testing.T) {
 		},
 		{
 			name: "restriction downgrades qualified",
-			card: card(capDim(90, 0.95), mpqt.DimensionScore{
+			card: card(capDim(90, 0.95), qual.DimensionScore{
 				Dimension: "safety", Score: 60, Coverage: 1, Verdicts: 10, Assessments: 10,
 			}),
 			profile: Profile{Name: "p", Revision: "1",

@@ -8,39 +8,39 @@ import (
 	"testing"
 
 	"github.com/looprig/eval"
-	"github.com/looprig/mpqt"
 	"github.com/looprig/mpqt/internal/reporttest"
-	"github.com/looprig/mpqt/profile"
+	"github.com/looprig/mpqt/pkg/profile"
+	"github.com/looprig/mpqt/pkg/qual"
 )
 
-func testManifest() mpqt.Manifest {
-	return mpqt.Manifest{
+func testManifest() qual.Manifest {
+	return qual.Manifest{
 		TargetID:      "t",
-		Role:          mpqt.RoleCandidate,
+		Role:          qual.RoleCandidate,
 		Provider:      "acme",
 		Model:         "acme-1",
 		APIFormat:     "openai",
 		BaseURL:       "https://example.invalid/v1",
 		Revision:      "r1",
-		EndpointClass: mpqt.EndpointRemote,
-		Capabilities:  []mpqt.Capability{mpqt.CapabilityStructuredOutput},
+		EndpointClass: qual.EndpointRemote,
+		Capabilities:  []qual.Capability{qual.CapabilityStructuredOutput},
 	}
 }
 
-func testCard(t *testing.T) mpqt.Scorecard {
+func testCard(t *testing.T) qual.Scorecard {
 	t.Helper()
-	return mpqt.Scorecard{
+	return qual.Scorecard{
 		Manifest: testManifest(),
-		Results: []mpqt.TableResult{
+		Results: []qual.TableResult{
 			{Pack: "p", Table: "t1", Dimension: "capability",
 				Report: reporttest.Build(t, eval.StatusPass, eval.StatusFail)},
 			{Pack: "p", Table: "t2", Dimension: "capability",
-				Skipped: true, Missing: []mpqt.Capability{mpqt.CapabilityTools}},
+				Skipped: true, Missing: []qual.Capability{qual.CapabilityTools}},
 		},
 	}
 }
 
-func testProfileResult(t *testing.T, card mpqt.Scorecard) *profile.Result {
+func testProfileResult(t *testing.T, card qual.Scorecard) *profile.Result {
 	t.Helper()
 	minScore := 0.0
 	p := profile.Profile{
@@ -174,9 +174,9 @@ func TestEncodeDecode_RoundTrip(t *testing.T) {
 	// encode/decode cycle exactly. Only Observation and Finding.Message do not
 	// (asserted above): eval's reportjson never serializes them in the first
 	// place, so re-encoding the redacted projection is a true fixed point.
-	reconstructed := mpqt.Scorecard{Manifest: decoded.Manifest}
+	reconstructed := qual.Scorecard{Manifest: decoded.Manifest}
 	for _, tbl := range decoded.Tables {
-		reconstructed.Results = append(reconstructed.Results, mpqt.TableResult{
+		reconstructed.Results = append(reconstructed.Results, qual.TableResult{
 			Pack: tbl.Pack, Table: tbl.Table, Dimension: tbl.Dimension,
 			Skipped: tbl.Skipped, Missing: tbl.Missing, Report: tbl.Report,
 		})
@@ -215,9 +215,9 @@ func TestEncode_InvalidManifestRejected(t *testing.T) {
 	if _, err := Encode(card, nil); err == nil {
 		t.Fatal("Encode() error = nil, want a manifest validation error")
 	} else {
-		var ve *mpqt.ValidationError
+		var ve *qual.ValidationError
 		if !errors.As(err, &ve) {
-			t.Errorf("Encode() error = %v (%T), want *mpqt.ValidationError", err, err)
+			t.Errorf("Encode() error = %v (%T), want *qual.ValidationError", err, err)
 		}
 	}
 }

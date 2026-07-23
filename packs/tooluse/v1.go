@@ -8,7 +8,7 @@ import (
 	"github.com/looprig/core/content"
 	"github.com/looprig/eval"
 	"github.com/looprig/eval/exact"
-	"github.com/looprig/mpqt"
+	"github.com/looprig/mpqt/pkg/qual"
 )
 
 // Revision is the pack revision. Any semantic change to scenarios or
@@ -19,16 +19,16 @@ const Revision eval.Revision = "v1"
 const dimension eval.Name = "capability"
 
 // V1 constructs the tool-use pack. Construction is pure: no I/O.
-func V1() mpqt.Pack {
-	return mpqt.Pack{
+func V1() qual.Pack {
+	return qual.Pack{
 		Name:     "tool-use",
 		Revision: Revision,
-		Tables: []mpqt.Table{
+		Tables: []qual.Table{
 			{
 				Name:      "selection",
 				Revision:  Revision,
 				Dimension: dimension,
-				Requires:  []mpqt.Capability{mpqt.CapabilityTools},
+				Requires:  []qual.Capability{qual.CapabilityTools},
 				Scenarios: selectionScenarios(),
 				Evaluators: []eval.Evaluator{
 					exact.RequiredTool("search"),
@@ -39,7 +39,7 @@ func V1() mpqt.Pack {
 				Name:      "discipline",
 				Revision:  Revision,
 				Dimension: dimension,
-				Requires:  []mpqt.Capability{mpqt.CapabilityTools},
+				Requires:  []qual.Capability{qual.CapabilityTools},
 				Scenarios: disciplineScenarios(),
 				// NOTE: exact.ToolErrorRate requires tool_operation evidence
 				// (see exact.Descriptor.CheckRequires); it yields Unverified,

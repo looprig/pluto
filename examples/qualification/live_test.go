@@ -17,9 +17,9 @@ import (
 	inferauth "github.com/looprig/inference/auth"
 	"github.com/looprig/inference/model"
 	"github.com/looprig/llm/auto"
-	"github.com/looprig/mpqt"
-	"github.com/looprig/mpqt/mpqttest"
 	"github.com/looprig/mpqt/packs/structuredoutput"
+	"github.com/looprig/mpqt/pkg/mpqttest"
+	"github.com/looprig/mpqt/pkg/qual"
 )
 
 func TestLiveQualification(t *testing.T) {
@@ -40,15 +40,15 @@ func TestLiveQualification(t *testing.T) {
 		inferenceeval.WithRevision(eval.Revision(structuredoutput.Revision)),
 	)
 	card := mpqttest.Run(t, mpqttest.RunSpec{
-		Manifest: mpqt.Manifest{
-			TargetID: "live-candidate", Role: mpqt.RoleCandidate,
+		Manifest: qual.Manifest{
+			TargetID: "live-candidate", Role: qual.RoleCandidate,
 			Provider: "openrouter", Model: "openai/gpt-5.4-mini",
 			APIFormat: "openai", BaseURL: "https://openrouter.ai/api/v1",
 			Revision:      eval.Revision(structuredoutput.Revision),
-			EndpointClass: mpqt.EndpointRemote,
-			Capabilities:  []mpqt.Capability{mpqt.CapabilityStructuredOutput},
+			EndpointClass: qual.EndpointRemote,
+			Capabilities:  []qual.Capability{qual.CapabilityStructuredOutput},
 		},
-		Packs:  []mpqt.Pack{structuredoutput.V1()},
+		Packs:  []qual.Pack{structuredoutput.V1()},
 		Target: target,
 	})
 	roll, err := card.StatusRollup()

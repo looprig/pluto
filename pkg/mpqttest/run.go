@@ -10,22 +10,22 @@ import (
 	"testing"
 
 	"github.com/looprig/eval"
-	"github.com/looprig/mpqt"
-	"github.com/looprig/mpqt/profile"
+	"github.com/looprig/mpqt/pkg/profile"
+	"github.com/looprig/mpqt/pkg/qual"
 )
 
 // RunSpec is one full offline-or-live MPQT execution: a manifest, the packs
 // to plan against it, the target to observe, and how many trials to run each
 // scenario.
 type RunSpec struct {
-	Manifest mpqt.Manifest
-	Packs    []mpqt.Pack
+	Manifest qual.Manifest
+	Packs    []qual.Pack
 	Target   eval.Target
 	Trials   int // passed straight to eval.RunConfig.Trials
 }
 
 // Run executes every pack in spec against spec.Target under spec.Manifest and
-// returns the resulting Scorecard. For each pack, mpqt.Plan expands the
+// returns the resulting Scorecard. For each pack, qual.Plan expands the
 // manifest into per-table plans; a runnable plan is executed with eval.Run
 // inside its own t.Run(pack/table) subtest, and a non-runnable plan (missing
 // capability) becomes a Skipped TableResult, logging the missing
@@ -33,13 +33,13 @@ type RunSpec struct {
 // error is a t.Fatalf: a broken pack or manifest is a bug in the test setup,
 // not a verdict to record. MPQT implements no trial loop of its own — Trials
 // passes straight through to eval.RunConfig.
-func Run(t *testing.T, spec RunSpec) mpqt.Scorecard {
+func Run(t *testing.T, spec RunSpec) qual.Scorecard {
 	t.Helper()
 	ctx := t.Context()
 
-	var results []mpqt.TableResult
+	var results []qual.TableResult
 	for _, pack := range spec.Packs {
-		plans, err := mpqt.Plan(pack, spec.Manifest)
+		plans, err := qual.Plan(pack, spec.Manifest)
 		if err != nil {
 			t.Fatalf("mpqttest: Plan(%s): %v", pack.Name, err)
 		}
@@ -52,7 +52,7 @@ func Run(t *testing.T, spec RunSpec) mpqt.Scorecard {
 						missing = append(missing, string(m))
 					}
 					t.Logf("mpqttest: skipping %s: missing capabilities [%s]", name, strings.Join(missing, ", "))
-					results = append(results, mpqt.TableResult{
+					results = append(results, qual.TableResult{
 						Pack: plan.Pack, Table: plan.Table, Dimension: plan.Dimension,
 						Skipped: true, Missing: plan.Missing,
 					})
@@ -62,14 +62,14 @@ func Run(t *testing.T, spec RunSpec) mpqt.Scorecard {
 				if err != nil {
 					t.Fatalf("mpqttest: eval.Run(%s): %v", name, err)
 				}
-				results = append(results, mpqt.TableResult{
+				results = append(results, qual.TableResult{
 					Pack: plan.Pack, Table: plan.Table, Dimension: plan.Dimension,
 					Report: report,
 				})
 			})
 		}
 	}
-	return mpqt.Scorecard{Manifest: spec.Manifest, Results: results}
+	return qual.Scorecard{Manifest: spec.Manifest, Results: results}
 }
 
 // RequireDisposition evaluates card against p (profile.Evaluate) and
@@ -77,7 +77,7 @@ func Run(t *testing.T, spec RunSpec) mpqt.Scorecard {
 // disposition and every requirement outcome. An empty allowed list is itself
 // a t.Fatal: a gate that accepts no disposition is a configuration bug, not a
 // legitimate all-reject gate.
-func RequireDisposition(t *testing.T, card mpqt.Scorecard, p profile.Profile, allowed ...profile.Disposition) {
+func RequireDisposition(t *testing.T, card qual.Scorecard, p profile.Profile, allowed ...profile.Disposition) {
 	t.Helper()
 	if len(allowed) == 0 {
 		t.Fatal("mpqttest: RequireDisposition requires at least one allowed disposition")

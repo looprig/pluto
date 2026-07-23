@@ -5,7 +5,7 @@ package profile
 
 import (
 	"github.com/looprig/eval"
-	"github.com/looprig/mpqt"
+	"github.com/looprig/mpqt/pkg/qual"
 )
 
 // Disposition is the derived release-policy outcome. There is no valid zero
@@ -42,13 +42,13 @@ func (r Requirement) Validate() error {
 	if r.Dimension != "" {
 		subjects++
 		if r.MinScore == nil && r.MinCoverage == nil {
-			return &mpqt.ValidationError{Field: "Requirement", Reason: "dimension subject needs MinScore or MinCoverage"}
+			return &qual.ValidationError{Field: "Requirement", Reason: "dimension subject needs MinScore or MinCoverage"}
 		}
 	}
 	if r.FindingCode != "" {
 		subjects++
 		if r.MaxFindingCount == nil {
-			return &mpqt.ValidationError{Field: "Requirement", Reason: "finding subject needs MaxFindingCount"}
+			return &qual.ValidationError{Field: "Requirement", Reason: "finding subject needs MaxFindingCount"}
 		}
 	}
 	if r.Severity != "" {
@@ -57,23 +57,23 @@ func (r Requirement) Validate() error {
 			return err
 		}
 		if r.MaxSeverityCount == nil {
-			return &mpqt.ValidationError{Field: "Requirement", Reason: "severity subject needs MaxSeverityCount"}
+			return &qual.ValidationError{Field: "Requirement", Reason: "severity subject needs MaxSeverityCount"}
 		}
 	}
 	if subjects != 1 {
-		return &mpqt.ValidationError{Field: "Requirement", Reason: "exactly one subject required"}
+		return &qual.ValidationError{Field: "Requirement", Reason: "exactly one subject required"}
 	}
 	if r.MinScore != nil && (*r.MinScore < 0 || *r.MinScore > 100) {
-		return &mpqt.ValidationError{Field: "Requirement.MinScore", Reason: "must be within [0,100]"}
+		return &qual.ValidationError{Field: "Requirement.MinScore", Reason: "must be within [0,100]"}
 	}
 	if r.MinCoverage != nil && (*r.MinCoverage < 0 || *r.MinCoverage > 1) {
-		return &mpqt.ValidationError{Field: "Requirement.MinCoverage", Reason: "must be within [0,1]"}
+		return &qual.ValidationError{Field: "Requirement.MinCoverage", Reason: "must be within [0,1]"}
 	}
 	if r.MaxFindingCount != nil && *r.MaxFindingCount < 0 {
-		return &mpqt.ValidationError{Field: "Requirement.MaxFindingCount", Reason: "must not be negative"}
+		return &qual.ValidationError{Field: "Requirement.MaxFindingCount", Reason: "must not be negative"}
 	}
 	if r.MaxSeverityCount != nil && *r.MaxSeverityCount < 0 {
-		return &mpqt.ValidationError{Field: "Requirement.MaxSeverityCount", Reason: "must not be negative"}
+		return &qual.ValidationError{Field: "Requirement.MaxSeverityCount", Reason: "must not be negative"}
 	}
 	return nil
 }
@@ -105,7 +105,7 @@ func (p Profile) Validate() error {
 		return err
 	}
 	if len(p.Requirements) == 0 {
-		return &mpqt.ValidationError{Field: "Profile.Requirements", Reason: "must not be empty"}
+		return &qual.ValidationError{Field: "Profile.Requirements", Reason: "must not be empty"}
 	}
 	for _, r := range p.Requirements {
 		if err := r.Validate(); err != nil {
@@ -114,7 +114,7 @@ func (p Profile) Validate() error {
 	}
 	for _, r := range p.Restrictions {
 		if r.Description == "" {
-			return &mpqt.ValidationError{Field: "Restriction.Description", Reason: "must not be empty"}
+			return &qual.ValidationError{Field: "Restriction.Description", Reason: "must not be empty"}
 		}
 		if err := r.Requirement.Validate(); err != nil {
 			return err
