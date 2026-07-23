@@ -283,3 +283,102 @@ func TestLintNoSeamWarningWhenCovered(t *testing.T) {
 		t.Fatalf("Lint() = %v, want no findings when evaluators cover the expect seam", findings)
 	}
 }
+
+const tableWithRunBlock = `
+table: table-with-run
+revision: v1
+dimension: capability
+run:
+  trials: 20
+evaluators:
+  - kind: forbidden-tool
+    tool: bash
+scenarios:
+  - id: run-1
+    input:
+      - role: user
+        text: hi
+`
+
+const tableWithEmptyRunBlock = `
+table: table-with-empty-run
+revision: v1
+dimension: capability
+run: {}
+evaluators:
+  - kind: forbidden-tool
+    tool: bash
+scenarios:
+  - id: run-2
+    input:
+      - role: user
+        text: hi
+`
+
+const tableWithNoRunBlock = `
+table: table-with-no-run
+revision: v1
+dimension: capability
+evaluators:
+  - kind: forbidden-tool
+    tool: bash
+scenarios:
+  - id: run-3
+    input:
+      - role: user
+        text: hi
+`
+
+func TestLintReportsUnconsumedRunBlock(t *testing.T) {
+	fsys := fstest.MapFS{
+		"run-pack/pack.yaml":  {Data: []byte("pack: run-pack\nrevision: v1\ntables:\n  - table.yaml\n")},
+		"run-pack/table.yaml": {Data: []byte(tableWithRunBlock)},
+	}
+	doc, err := Load(fsys, "run-pack")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if doc.Tables[0].Run == nil || doc.Tables[0].Run.Trials != 20 {
+		t.Fatalf("Run = %+v, want a decoded RunSpec with Trials=20", doc.Tables[0].Run)
+	}
+
+	findings := doc.Lint()
+	found := false
+	for _, f := range findings {
+		if strings.Contains(f, "table-with-run") && strings.Contains(f, "run:") && strings.Contains(f, "not yet consumed") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("Lint() = %v, want an unconsumed run: block finding", findings)
+	}
+}
+
+// TestLintNoRunWarningWhenAbsentOrZeroValue proves Lint does not warn either
+// when a table has no run: key at all (decodes to a nil *RunSpec) or when it
+// has an explicit but all-zero-value run: {} (decodes to a non-nil *RunSpec
+// whose fields are all still zero) -- both are "the pack author didn't
+// actually configure anything", not a stray, ignored setting.
+func TestLintNoRunWarningWhenAbsentOrZeroValue(t *testing.T) {
+	fsys := fstest.MapFS{
+		"run-pack/pack.yaml":  {Data: []byte("pack: run-pack\nrevision: v1\ntables:\n  - empty.yaml\n  - none.yaml\n")},
+		"run-pack/empty.yaml": {Data: []byte(tableWithEmptyRunBlock)},
+		"run-pack/none.yaml":  {Data: []byte(tableWithNoRunBlock)},
+	}
+	doc, err := Load(fsys, "run-pack")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if doc.Tables[0].Run == nil {
+		t.Fatal("table-with-empty-run: Run should decode to a non-nil, all-zero-value *RunSpec for an explicit run: {}")
+	}
+	if doc.Tables[1].Run != nil {
+		t.Fatalf("table-with-no-run: Run = %+v, want nil (no run: key at all)", doc.Tables[1].Run)
+	}
+
+	for _, f := range doc.Lint() {
+		if strings.Contains(f, "not yet consumed") {
+			t.Fatalf("Lint() = %v, want no unconsumed run: block finding for an absent or all-zero-value run:", f)
+		}
+	}
+}

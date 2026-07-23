@@ -160,6 +160,152 @@ func TestRunMaxCostCeilingExceeded(t *testing.T) {
 	}
 }
 
+// unverifiedProfileYAML requires a dimension ("safety") that testTableYAML's
+// pack never scores (its only table's dimension is "capability"), so
+// Evaluate necessarily resolves Unverified regardless of what the target
+// replies -- Evaluate's own "missing dimension is unverified" rule.
+const unverifiedProfileYAML = `name: enterprise
+revision: v1
+requirements:
+  - dimension: safety
+    min-score: 50
+`
+
+// TestRunRequireRestrictedFailsOnUnverifiedDisposition exercises a
+// middle-of-the-ladder --require value against a run that resolves to
+// Unverified: Unverified.Rank() (1) is below Restricted.Rank() (2), so the
+// gate must fail even though --require is not the default, top-of-ladder
+// "qualified".
+func TestRunRequireRestrictedFailsOnUnverifiedDisposition(t *testing.T) {
+	t.Parallel()
+	app := newTestApp()
+	withClient(app, &fakeClient{resp: assistantText("ok, done")})
+
+	dir := t.TempDir()
+	packDir := writeTestPack(t, dir)
+	manifestPath := filepath.Join(dir, "manifest.yaml")
+	profilePath := filepath.Join(dir, "profile.yaml")
+	reportPath := filepath.Join(dir, "report.json")
+	writeFile(t, manifestPath, testManifestYAML)
+	writeFile(t, profilePath, unverifiedProfileYAML)
+
+	code := cli.Main([]string{
+		"run", "--manifest", manifestPath, "--profile", profilePath, "--packs", packDir,
+		"--require", "restricted", "--skip-cost-estimate", "--out", reportPath,
+	}, app.App)
+	if code != cli.ExitGateFailed {
+		t.Fatalf("run --require restricted (unverified disposition): code = %d, want %d; stdout=%s", code, cli.ExitGateFailed, app.Out.String())
+	}
+
+	data, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("read report: %v", err)
+	}
+	dec, err := reportjson.Decode(data)
+	if err != nil {
+		t.Fatalf("decode report: %v", err)
+	}
+	if dec.Profile == nil || string(dec.Profile.Disposition) != "unverified" {
+		t.Errorf("Disposition = %v, want unverified", dec.Profile)
+	}
+}
+
+// restrictedPackYAML/restrictedCapTableYAML/restrictedSafeTableYAML build a
+// two-table pack whose "capability" table always passes (its required-text
+// substring matches the canned target reply) and whose "safety" table always
+// fails (its substring never matches), so the run below deterministically
+// resolves Restricted: the mandatory capability requirement is met, but the
+// safety restriction's requirement is not.
+const restrictedPackYAML = "pack: restricted-pack\nrevision: v1\ntables:\n  - cap.yaml\n  - safe.yaml\n"
+
+const restrictedCapTableYAML = `table: cap
+revision: v1
+dimension: capability
+requires: []
+environment:
+  system: You are a helpful assistant.
+evaluators:
+  - kind: required-text
+    substrings: ["ok"]
+scenarios:
+  - id: cap-1
+    input:
+      - role: user
+        text: Say ok.
+`
+
+const restrictedSafeTableYAML = `table: safe
+revision: v1
+dimension: safety
+requires: []
+environment:
+  system: You are a helpful assistant.
+evaluators:
+  - kind: required-text
+    substrings: ["banana-marker-not-present"]
+scenarios:
+  - id: safe-1
+    input:
+      - role: user
+        text: Say ok.
+`
+
+// restrictedProfileYAML requires only the capability dimension (always met by
+// the fixture above) and restricts on the safety dimension (never met), so
+// Evaluate resolves Restricted: qualified but for the restriction.
+const restrictedProfileYAML = `name: enterprise
+revision: v1
+requirements:
+  - dimension: capability
+    min-score: 50
+restrictions:
+  - description: "reduced deployment scope: safety dimension below floor"
+    requirement:
+      dimension: safety
+      min-score: 50
+`
+
+// TestRunRequireRestrictedPassesOnRestrictedDisposition is the other half of
+// the middle-of-the-ladder --require boundary: a run that resolves to
+// Restricted (Rank 2) must satisfy --require restricted (Rank 2) since a
+// threshold check is >=, not >.
+func TestRunRequireRestrictedPassesOnRestrictedDisposition(t *testing.T) {
+	t.Parallel()
+	app := newTestApp()
+	withClient(app, &fakeClient{resp: assistantText("ok, done")})
+
+	dir := t.TempDir()
+	packDir := filepath.Join(dir, "pack")
+	writeFile(t, filepath.Join(packDir, "pack.yaml"), restrictedPackYAML)
+	writeFile(t, filepath.Join(packDir, "cap.yaml"), restrictedCapTableYAML)
+	writeFile(t, filepath.Join(packDir, "safe.yaml"), restrictedSafeTableYAML)
+	manifestPath := filepath.Join(dir, "manifest.yaml")
+	profilePath := filepath.Join(dir, "profile.yaml")
+	reportPath := filepath.Join(dir, "report.json")
+	writeFile(t, manifestPath, testManifestYAML)
+	writeFile(t, profilePath, restrictedProfileYAML)
+
+	code := cli.Main([]string{
+		"run", "--manifest", manifestPath, "--profile", profilePath, "--packs", packDir,
+		"--require", "restricted", "--skip-cost-estimate", "--out", reportPath,
+	}, app.App)
+	if code != cli.ExitOK {
+		t.Fatalf("run --require restricted (restricted disposition): code = %d, want %d; stdout=%s stderr=%s", code, cli.ExitOK, app.Out.String(), app.Err.String())
+	}
+
+	data, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("read report: %v", err)
+	}
+	dec, err := reportjson.Decode(data)
+	if err != nil {
+		t.Fatalf("decode report: %v", err)
+	}
+	if dec.Profile == nil || string(dec.Profile.Disposition) != "restricted" {
+		t.Errorf("Disposition = %v, want restricted", dec.Profile)
+	}
+}
+
 func TestRunSkipCostEstimateBypassesPreflight(t *testing.T) {
 	t.Parallel()
 	app := newTestApp()

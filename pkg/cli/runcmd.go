@@ -17,26 +17,6 @@ import (
 	"github.com/looprig/mpqt/pkg/run"
 )
 
-// dispositionRank orders profile.Disposition worst-to-best for --require
-// gating. pkg/profile does not export any ordering of its own: profile.go
-// declares Disposition as a plain string enum with only the four constants,
-// and evaluate.go's Evaluate derives a single disposition by precedence
-// (violated > undecided > restriction-applied > qualified) without ever
-// comparing two Disposition values against each other -- there is no
-// Ordinal/Less method or rank table anywhere in pkg/profile (verified by
-// reading profile.go and evaluate.go in full). This ranking is therefore the
-// CLI's own reading of the natural qualification hierarchy the design
-// language implies (qualified is best, then restricted, then unverified,
-// then rejected worst), not a mechanism profile itself owns. See the task
-// report for this discrepancy against the plan, which assumed profile
-// exposed one.
-var dispositionRank = map[profile.Disposition]int{
-	profile.Rejected:   0,
-	profile.Unverified: 1,
-	profile.Restricted: 2,
-	profile.Qualified:  3,
-}
-
 // cmdRun loads a manifest and profile, builds every named pack (surfacing
 // packfile.ErrJudgeUnconfigured before any paid call when a pack needs a
 // judge and --config was not given), runs the preflight cost estimate
@@ -66,7 +46,7 @@ func cmdRun(app App, args []string) int {
 		return ExitUsage
 	}
 	requireDisp := profile.Disposition(*require)
-	if _, known := dispositionRank[requireDisp]; !known {
+	if requireDisp.Rank() < 0 {
 		fmt.Fprintf(app.Stderr, "mpqt run: --require %q is not a known disposition\n", *require)
 		return ExitUsage
 	}
@@ -90,7 +70,7 @@ func cmdRun(app App, args []string) int {
 			fmt.Fprintln(app.Stderr, "mpqt run: load config:", err)
 			return ExitCommandFailure
 		}
-		judgeModel = cfg.model()
+		judgeModel = cfg.toModel()
 		checkKeyPresence(app, app.Stdout, judgeModel.Provider)
 		judgeClient, err = app.client(judgeModel)
 		if err != nil {
@@ -221,7 +201,7 @@ func cmdRun(app App, args []string) int {
 
 	fmt.Fprintf(app.Stdout, "run: disposition=%s (require=%s) report=%s\n", result.Disposition, requireDisp, *out)
 
-	if dispositionRank[result.Disposition] < dispositionRank[requireDisp] {
+	if result.Disposition.Rank() < requireDisp.Rank() {
 		return ExitGateFailed
 	}
 	return ExitOK

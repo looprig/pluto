@@ -203,3 +203,63 @@ func TestEvaluateDispositions(t *testing.T) {
 		t.Error("Evaluate() with invalid profile should error")
 	}
 }
+
+func TestDispositionRank(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		d    Disposition
+		want int
+	}{
+		{Rejected, 0},
+		{Unverified, 1},
+		{Restricted, 2},
+		{Qualified, 3},
+		{Disposition("not-a-real-disposition"), -1},
+		{Disposition(""), -1},
+	}
+	for _, tt := range tests {
+		t.Run(string(tt.d), func(t *testing.T) {
+			t.Parallel()
+			if got := tt.d.Rank(); got != tt.want {
+				t.Errorf("Disposition(%q).Rank() = %d, want %d", tt.d, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestDispositionRankPairwiseOrdering exercises every pairwise comparison
+// across the full worst-to-best ladder, not just the two extremes: the
+// reviews specifically flagged Restricted vs Unverified as an under-tested
+// boundary, since it sits in the middle of the ladder rather than at an edge.
+func TestDispositionRankPairwiseOrdering(t *testing.T) {
+	t.Parallel()
+	ladder := []Disposition{Rejected, Unverified, Restricted, Qualified}
+	for i, worse := range ladder {
+		for j, better := range ladder {
+			worse, better := worse, better
+			switch {
+			case i < j:
+				t.Run(string(worse)+"_less_than_"+string(better), func(t *testing.T) {
+					t.Parallel()
+					if !(worse.Rank() < better.Rank()) {
+						t.Errorf("%s.Rank()=%d, want strictly less than %s.Rank()=%d", worse, worse.Rank(), better, better.Rank())
+					}
+				})
+			case i == j:
+				t.Run(string(worse)+"_equal_to_itself", func(t *testing.T) {
+					t.Parallel()
+					if worse.Rank() != better.Rank() {
+						t.Errorf("%s.Rank()=%d, want equal to itself", worse, worse.Rank())
+					}
+				})
+			default:
+				t.Run(string(worse)+"_greater_than_"+string(better), func(t *testing.T) {
+					t.Parallel()
+					if !(worse.Rank() > better.Rank()) {
+						t.Errorf("%s.Rank()=%d, want strictly greater than %s.Rank()=%d", worse, worse.Rank(), better, better.Rank())
+					}
+				})
+			}
+		}
+	}
+}

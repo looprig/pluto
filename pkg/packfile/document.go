@@ -105,11 +105,28 @@ func (e *EvaluatorSpec) UnmarshalYAML(node *yaml.Node) error {
 }
 
 // RunSpec carries optional per-table eval.RunConfig defaults.
+//
+// RunSpec is decoded and schema-documented but not yet consumed by anything:
+// pkg/qual.TablePlan has no Run field and pkg/run.Execute only takes one
+// global eval.RunConfig from Spec.Config. Wiring per-table trials/
+// concurrency/timeouts into execution is deferred; Document.Lint warns a
+// pack author whose table sets a non-zero RunSpec that it currently has no
+// effect (see isSet).
 type RunSpec struct {
 	Trials           int    `yaml:"trials"`
 	Concurrency      int    `yaml:"concurrency"`
 	TargetTimeout    string `yaml:"target-timeout"`    // Go duration string
 	EvaluatorTimeout string `yaml:"evaluator-timeout"` // Go duration string
+}
+
+// isSet reports whether r is non-nil and the pack author set at least one
+// field on it. A table's `run:` key can decode to a non-nil *RunSpec with
+// every field at its zero value (an explicit `run: {}`), which isSet treats
+// the same as no `run:` key at all (a nil *RunSpec): neither is something
+// Lint should warn about, since neither declares any actual per-table
+// override.
+func (r *RunSpec) isSet() bool {
+	return r != nil && (r.Trials != 0 || r.Concurrency != 0 || r.TargetTimeout != "" || r.EvaluatorTimeout != "")
 }
 
 // ScenarioSpec is one test case.

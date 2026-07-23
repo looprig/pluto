@@ -19,6 +19,34 @@ const (
 	Unverified Disposition = "unverified"
 )
 
+// Rank orders the four Disposition constants worst-to-best, for callers that
+// need a minimum-acceptability threshold -- e.g. a CLI's --require flag,
+// which must accept anything at or above a configured floor. It returns -1
+// for any value that is not one of the four Disposition constants, so a
+// caller can use a negative result to reject an unrecognized --require
+// value.
+//
+// This is a DIFFERENT axis from Evaluate's own precedence-of-derivation
+// logic (violated > undecided > restriction-applied > default qualified),
+// which decides which single disposition a scorecard resolves to in the
+// first place given a profile's requirements and restrictions. Rank instead
+// compares two already-derived Disposition values against each other; it is
+// never consulted by Evaluate.
+func (d Disposition) Rank() int {
+	switch d {
+	case Rejected:
+		return 0
+	case Unverified:
+		return 1
+	case Restricted:
+		return 2
+	case Qualified:
+		return 3
+	default:
+		return -1
+	}
+}
+
 // Requirement is one testable policy clause. Exactly one subject must be set:
 // either Dimension (with MinScore and/or MinCoverage) or FindingCode (with
 // MaxFindingCount) or Severity (with MaxSeverityCount). Nil bounds are

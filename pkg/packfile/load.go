@@ -203,10 +203,11 @@ func (d *Document) buildTable(tf TableFile, reg *Registry, bc BuildContext) (qua
 const seamSchemaKind = "schema-result"
 
 // Lint returns non-fatal findings: unlisted *.yaml files in the directory,
-// and expect/evaluator seam warnings -- a scenario with expected-tool-calls
+// expect/evaluator seam warnings -- a scenario with expected-tool-calls
 // but no required-tool/tool-error-rate kind in the table, or a
-// structured-output expect without a schema-result kind. Findings are
-// diagnostics for pack authors, never load or build errors.
+// structured-output expect without a schema-result kind -- and a table's
+// unconsumed run: block. Findings are diagnostics for pack authors, never
+// load or build errors.
 func (d *Document) Lint() []string {
 	var findings []string
 	for _, name := range d.unlisted {
@@ -216,6 +217,12 @@ func (d *Document) Lint() []string {
 	}
 
 	for _, tf := range d.Tables {
+		if tf.Run.isSet() {
+			findings = append(findings, fmt.Sprintf(
+				"table %q: run: block is decoded but not yet consumed by mpqt run (per-table trials/concurrency/timeouts have no effect; use the CLI's global --trials/--concurrency flags instead)",
+				tf.Table))
+		}
+
 		kinds := make(map[string]bool, len(tf.Evaluators))
 		for _, ev := range tf.Evaluators {
 			kinds[ev.Kind] = true

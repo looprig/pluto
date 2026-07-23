@@ -224,9 +224,10 @@ type LLMConfig struct {
 	} `yaml:"llm"`
 }
 
-// model converts the config into the model.Model identity gen/run construct
-// a client or counter from.
-func (c LLMConfig) model() model.Model {
+// toModel converts the config into the model.Model identity gen/run construct
+// a client or counter from. Named toModel (not model) to avoid shadowing the
+// imported model package it constructs a value from.
+func (c LLMConfig) toModel() model.Model {
 	return model.Model{
 		Provider:  model.ProviderName(c.LLM.Provider),
 		APIFormat: model.APIFormat(c.LLM.APIFormat),

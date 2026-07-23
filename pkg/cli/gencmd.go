@@ -64,7 +64,7 @@ func cmdGen(app App, args []string) int {
 		fmt.Fprintln(app.Stderr, "mpqt gen: load config:", err)
 		return ExitCommandFailure
 	}
-	genModel := cfg.model()
+	genModel := cfg.toModel()
 
 	checkKeyPresence(app, app.Stdout, genModel.Provider)
 	client, err := app.client(genModel)
