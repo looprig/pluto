@@ -35,12 +35,18 @@ spec silently rewritten after the fact.
    manifest/profile YAML codecs as living in `packfile`, "keeping all YAML in
    one package". What shipped: `pkg/run/manifest.go` owns `DecodeManifest`/
    `DecodeProfile`, but reuses `packfile`'s now-exported `StrictDecode`
-   function rather than duplicating strict-decode logic or importing
-   `gopkg.in/yaml.v3` a second time. This was flagged during Task 9 review:
-   the codecs' *location* moved to `pkg/run` (closer to their only caller,
-   `mpqt run`), but the yaml.v3 import stays confined to `pkg/packfile` as
-   the design intended — the confinement goal is met, just not via the
-   originally-sketched file placement.
+   function rather than duplicating strict-decode *logic*. This was flagged
+   during Task 9 review: the codecs' *location* moved to `pkg/run` (closer to
+   their only caller, `mpqt run`), without re-implementing strict decoding —
+   but *decoding* being confined to reusing `packfile.StrictDecode` is a
+   separate claim from *the `gopkg.in/yaml.v3` import itself* being confined
+   to one package, which is not true: `pkg/gen`'s `Append` step also imports
+   `yaml.v3` directly, for comment-preserving `yaml.Node` surgery on the
+   encoding side (a different concern from decoding, and one this design
+   never anticipated as a codec-placement question). So: decode logic stays
+   single-sourced via `StrictDecode`; the `yaml.v3` dependency itself is used
+   from two packages (`packfile` for decode, `gen` for node-level encode
+   surgery), not confined to one.
 3. **`profile.Disposition.Rank()` (new, beyond this design).** The CLI's
    `mpqt run --require` threshold gate needs to compare an achieved
    disposition against a configured minimum. Rather than a CLI-local

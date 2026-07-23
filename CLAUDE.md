@@ -46,10 +46,13 @@ allowed to import `github.com/looprig/llm`:
   on a disposition.
 - `pkg/packfile` — the YAML trust boundary: strict pack/table decoding,
   environment templates, the evaluator registry, directory loading, digests,
-  `Lint()`, and the generated JSON Schema. The **only** package that imports
-  `gopkg.in/yaml.v3`; `pkg/run`'s manifest/profile YAML codecs reuse its
-  exported `packfile.StrictDecode` rather than importing yaml.v3 themselves,
-  so the dependency stays confined to this one package.
+  `Lint()`, and the generated JSON Schema. `pkg/run`'s manifest/profile YAML
+  codecs reuse its exported `packfile.StrictDecode` rather than
+  re-implementing strict decoding themselves. `gopkg.in/yaml.v3` is not fully
+  confined to this package, though: `pkg/gen` also imports it directly, for
+  comment-preserving `yaml.Node` surgery when appending generated scenarios
+  (see `pkg/gen` below) — decoding stays in `packfile`, but that one
+  encoding-side use lives in `pkg/gen`.
 - `pkg/codepacks` — the five built-in packs as Go code
   (`capability`, `tooluse`, `structuredoutput`, `safety`, `operational`).
   **Kept permanently, not a legacy holdover**: mid-execution the plan to
@@ -61,7 +64,8 @@ allowed to import `github.com/looprig/llm`:
 - `pkg/pricing` — models.dev snapshot parsing, cost/token estimation,
   redirect-safe snapshot fetch; llm-free (takes a `Counter` interface).
 - `pkg/gen` — single-turn, structured-output scenario generation plus the
-  mechanical validate/dedupe/append post-pass.
+  mechanical validate/dedupe/append post-pass. Imports `gopkg.in/yaml.v3`
+  directly for its `Append` step's comment-preserving `yaml.Node` surgery.
 - `pkg/cli` — every `mpqt` command's logic (`init`, `validate`, `schema`,
   `evaluators`, `gen`, `run`, `compare`), parameterized over an injected
   `App` (client/counter constructors, registry, I/O). llm-free.
@@ -96,7 +100,7 @@ follows the same shape: register kinds on a `packfile.Registry`, call
 - `github.com/decred/dcrd/dcrec/secp256k1/v4` (+`/ecdsa`) — secp256k1 ECDSA verify (64-byte) and public-key recovery (65-byte r‖s‖v), required by `pkg/llm/aci` to verify Dstack `aci/1` receipt signatures, keyset endorsements, and the KMS-custody chain (the gateway signs with `ecdsa-secp256k1`; stdlib has no secp256k1). **Approved 2026-06-24.** Chosen over `go-ethereum/crypto` for a far smaller dependency surface; same curve math. Note: secp256k1 is classical (protocol-mandated, verify-only) — not a quantum-safety choice.
 - `github.com/looprig/storage` — leaf storage contracts (`Ledger`/`Leaser`/`KV`/`Blobs`) + in-memory reference backend (`memstore`) + conformance suite (`storetest`); stdlib-only. The NATS deps moved to the `looprig/natsstore` backend module; `fsstore`/`rclonestore` are the other storage backends.
 - `github.com/looprig/eval` — the reusable evaluation framework module (a first-party looprig sibling, like `github.com/looprig/storage`/`tui`): conversations, evaluators, rubrics, findings, reports, plus `exact`, `judge`, `rubric`, and `evaltest`. Built on `github.com/looprig/core` (and `github.com/looprig/inference` in its `judge`/`target/inference` packages only). Depended on by `pkg/evalmigration`, and supersedes the legacy `pkg/eval`. Approved 2026-07-18 as part of the eval-framework migration.
-- `gopkg.in/yaml.v3` — YAML codec for pack/manifest/profile/generator files (`pkg/packfile`); stdlib has no YAML and the pack corpus is a hand-edited YAML format by design. **Approved 2026-07-23** (Phase 2 design, docs/2026-07-23-phase2-packfiles-generation-cli-design.md).
+- `gopkg.in/yaml.v3` — YAML codec for pack/manifest/profile/generator files. Strict decoding lives in `pkg/packfile` (`StrictDecode`, reused by `pkg/run`'s manifest/profile codecs); `pkg/gen` also imports it directly for comment-preserving `yaml.Node` encode-side surgery. Stdlib has no YAML and the pack corpus is a hand-edited YAML format by design. **Approved 2026-07-23** (Phase 2 design, docs/2026-07-23-phase2-packfiles-generation-cli-design.md).
 - The interactive terminal presentation layer and its charm.land stack live in the sibling module github.com/looprig/tui.
 - The transcript reconstruction and HTML-export layer was archived out of Harness on 2026-07-09. Harness core does not carry a CommonMark renderer.
 
