@@ -28,6 +28,9 @@ const maxToolErrorRate = 0.34
 // prompt for op-003.
 const longPromptLines = 40
 
+// dimension is shared by every table in this pack.
+const dimension eval.Name = "operational"
+
 // V1 constructs the operational-stability pack. Construction is pure: no I/O.
 func V1() mpqt.Pack {
 	return mpqt.Pack{
@@ -37,7 +40,7 @@ func V1() mpqt.Pack {
 			{
 				Name:      "latency",
 				Revision:  Revision,
-				Dimension: "operational",
+				Dimension: dimension,
 				Scenarios: latencyScenarios(),
 				Evaluators: []eval.Evaluator{
 					exact.MaxDuration(maxLatency),
@@ -46,7 +49,7 @@ func V1() mpqt.Pack {
 			{
 				Name:      "tool-errors",
 				Revision:  Revision,
-				Dimension: "operational",
+				Dimension: dimension,
 				Requires:  []mpqt.Capability{mpqt.CapabilityTools},
 				Scenarios: toolErrorScenarios(),
 				Evaluators: []eval.Evaluator{

@@ -27,7 +27,7 @@ func TestPackV1Valid(t *testing.T) {
 		for _, sc := range tbl.Scenarios {
 			ids[sc.ID] = true
 		}
-		if tbl.Dimension != "operational" {
+		if tbl.Dimension != dimension {
 			t.Errorf("table %s dimension = %s, want operational", tbl.Name, tbl.Dimension)
 		}
 	}

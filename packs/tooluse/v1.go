@@ -15,6 +15,9 @@ import (
 // evaluator wiring requires a bump.
 const Revision eval.Revision = "v1"
 
+// dimension is shared by every table in this pack.
+const dimension eval.Name = "capability"
+
 // V1 constructs the tool-use pack. Construction is pure: no I/O.
 func V1() mpqt.Pack {
 	return mpqt.Pack{
@@ -24,7 +27,7 @@ func V1() mpqt.Pack {
 			{
 				Name:      "selection",
 				Revision:  Revision,
-				Dimension: "capability",
+				Dimension: dimension,
 				Requires:  []mpqt.Capability{mpqt.CapabilityTools},
 				Scenarios: selectionScenarios(),
 				Evaluators: []eval.Evaluator{
@@ -35,7 +38,7 @@ func V1() mpqt.Pack {
 			{
 				Name:      "discipline",
 				Revision:  Revision,
-				Dimension: "capability",
+				Dimension: dimension,
 				Requires:  []mpqt.Capability{mpqt.CapabilityTools},
 				Scenarios: disciplineScenarios(),
 				// NOTE: exact.ToolErrorRate requires tool_operation evidence
