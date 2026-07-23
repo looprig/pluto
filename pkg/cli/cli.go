@@ -1,0 +1,399 @@
+// Package cli implements every mpqt command against injected dependencies.
+// It is llm-free; cmd/mpqt (the nested module) supplies the constructors
+// (App.NewClient, App.NewCounter) that reach a real inference.Client and
+// pricing.Counter. This package never imports github.com/looprig/llm and
+// never constructs a client or counter itself -- it only ever calls the
+// functions App carries.
+package cli
+
+import (
+	"context"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/looprig/inference"
+	"github.com/looprig/inference/model"
+	"github.com/looprig/mpqt/pkg/packfile"
+	"github.com/looprig/mpqt/pkg/pricing"
+)
+
+// Process exit codes, per Main's own doc comment: 0 ok; 1 command failure; 2
+// usage; 3 disposition/comparison gate failed; 4 cost ceiling or
+// pricing-completeness failure.
+const (
+	ExitOK             = 0
+	ExitCommandFailure = 1
+	ExitUsage          = 2
+	ExitGateFailed     = 3
+	ExitPricing        = 4
+)
+
+// App wires the environment-specific pieces. Every field has a working
+// zero-cost default except the client constructors, which nil out LLM
+// commands with a clear error: App{} is enough to run init/validate/schema/
+// evaluators/compare (see withDefaults), but gen/run need NewClient (and,
+// for a real token estimate rather than the heuristic fallback, NewCounter).
+type App struct {
+	Registry       *packfile.Registry
+	NewClient      func(model.Model) (inference.Client, error) // nil => gen/run/judge unavailable
+	NewCounter     func(model.Model) (pricing.Counter, error)  // nil => heuristic preflight
+	LookupEnv      func(string) (string, bool)                 // for key presence checks (never values in output)
+	Stdout, Stderr io.Writer
+	Now            func() time.Time
+}
+
+// client resolves a live inference.Client for m via App.NewClient, or a
+// clear, non-panicking error when no constructor was supplied.
+func (a App) client(m model.Model) (inference.Client, error) {
+	if a.NewClient == nil {
+		return nil, errors.New("mpqt: no LLM client configured (App.NewClient is nil); this command needs cmd/mpqt or another composition root that supplies one")
+	}
+	return a.NewClient(m)
+}
+
+// counter resolves a pricing.Counter for m via App.NewCounter. A nil
+// NewCounter is a legal configuration: it degrades every preflight estimate
+// to pricing's own heuristic (recorded as such in Plan.CounterQuality), never
+// an error.
+func (a App) counter(m model.Model) (pricing.Counter, error) {
+	if a.NewCounter == nil {
+		return nil, nil
+	}
+	return a.NewCounter(m)
+}
+
+// withDefaults fills every field of App that has a working zero-cost
+// default, so App{} (or a partially populated App) is enough to run every
+// command that doesn't need a real LLM client.
+func withDefaults(app App) App {
+	if app.Registry == nil {
+		app.Registry = packfile.NewRegistry()
+	}
+	if app.Stdout == nil {
+		app.Stdout = os.Stdout
+	}
+	if app.Stderr == nil {
+		app.Stderr = os.Stderr
+	}
+	if app.Now == nil {
+		app.Now = time.Now
+	}
+	if app.LookupEnv == nil {
+		app.LookupEnv = os.LookupEnv
+	}
+	return app
+}
+
+// Main parses args and dispatches. Returns the process exit code:
+// 0 ok; 1 command failure; 2 usage; 3 disposition/comparison gate failed;
+// 4 cost ceiling or pricing-completeness failure.
+func Main(args []string, app App) int {
+	app = withDefaults(app)
+
+	if len(args) == 0 {
+		printTopUsage(app.Stderr)
+		return ExitUsage
+	}
+
+	cmd, rest := args[0], args[1:]
+	switch cmd {
+	case "-h", "--help", "-help", "help":
+		printTopUsage(app.Stdout)
+		return ExitOK
+	case "init":
+		return cmdInit(app, rest)
+	case "validate":
+		return cmdValidate(app, rest)
+	case "schema":
+		return cmdSchema(app, rest)
+	case "evaluators":
+		return cmdEvaluators(app, rest)
+	case "gen":
+		return cmdGen(app, rest)
+	case "run":
+		return cmdRun(app, rest)
+	case "compare":
+		return cmdCompare(app, rest)
+	default:
+		fmt.Fprintf(app.Stderr, "mpqt: unknown command %q\n", cmd)
+		printTopUsage(app.Stderr)
+		return ExitUsage
+	}
+}
+
+func printTopUsage(w io.Writer) {
+	fmt.Fprint(w, `usage: mpqt <command> [flags]
+
+commands:
+  init <name> [dir]   scaffold a custom pack directory
+  validate [dir...]   strict load + lint + digest check (+ optional --execute)
+  schema              print the pack file JSON Schema
+  evaluators          list evaluator kinds, options, and evidence requirements
+  gen                 generate candidate scenarios for one table
+  run                 execute packs against a live target and gate on a profile
+  compare             gate a candidate report against an incumbent report
+
+Run 'mpqt <command> -h' for command-specific flags.
+`)
+}
+
+// --- shared flag-parsing helpers, used by every subcommand ---
+
+// newFlagSet builds the one flag.FlagSet a subcommand parses its own flags
+// with. Usage is fixed at construction so both the explicit -h path and a
+// flag.Parse error print the same synopsis to whichever writer parseFlags
+// pointed fs.Output() at.
+func newFlagSet(name, synopsis string) *flag.FlagSet {
+	fs := flag.NewFlagSet(name, flag.ContinueOnError)
+	fs.Usage = func() {
+		fmt.Fprintf(fs.Output(), "usage: mpqt %s\n", synopsis)
+		fs.PrintDefaults()
+	}
+	return fs
+}
+
+// hasHelpFlag reports whether args contains an explicit help request. It is
+// checked before flag.Parse so a bare "-h" never has to survive strict flag
+// parsing to be recognized.
+func hasHelpFlag(args []string) bool {
+	for _, a := range args {
+		if a == "-h" || a == "--help" || a == "-help" {
+			return true
+		}
+	}
+	return false
+}
+
+// parseFlags parses args with fs. An explicit help request prints fs's usage
+// to app.Stdout and returns (0, false): the design's "-h prints usage to
+// Stdout" rule. Any other parse failure prints to app.Stderr (flag's own
+// error plus fs.Usage) and returns (ExitUsage, false). ok is true only when
+// the caller should proceed to run the command with its own parsed flags.
+func parseFlags(app App, fs *flag.FlagSet, args []string) (code int, ok bool) {
+	if hasHelpFlag(args) {
+		fs.SetOutput(app.Stdout)
+		fs.Usage()
+		return ExitOK, false
+	}
+	fs.SetOutput(app.Stderr)
+	if err := fs.Parse(args); err != nil {
+		return ExitUsage, false
+	}
+	return 0, true
+}
+
+// stringList is a repeatable flag.Value: each occurrence of the flag (or a
+// comma-separated value) appends one or more entries.
+type stringList []string
+
+func (s *stringList) String() string {
+	if s == nil {
+		return ""
+	}
+	return strings.Join(*s, ",")
+}
+
+func (s *stringList) Set(v string) error {
+	for _, part := range strings.Split(v, ",") {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			*s = append(*s, part)
+		}
+	}
+	return nil
+}
+
+// --- generator/judge LLM config, shared by gen and run ---
+
+// LLMConfig is the generator/judge configuration file shape: non-secret
+// provider/model identity only. The API key comes only from the provider's
+// own environment variable (never this file, never a CLI flag) -- see
+// checkKeyPresence.
+type LLMConfig struct {
+	LLM struct {
+		Provider  string `yaml:"provider"`
+		Model     string `yaml:"model"`
+		APIFormat string `yaml:"api-format"`
+		BaseURL   string `yaml:"base-url"`
+	} `yaml:"llm"`
+}
+
+// model converts the config into the model.Model identity gen/run construct
+// a client or counter from.
+func (c LLMConfig) model() model.Model {
+	return model.Model{
+		Provider:  model.ProviderName(c.LLM.Provider),
+		APIFormat: model.APIFormat(c.LLM.APIFormat),
+		BaseURL:   c.LLM.BaseURL,
+		Name:      c.LLM.Model,
+	}
+}
+
+// loadLLMConfig strictly decodes path (via packfile.StrictDecode, keeping
+// yaml.v3 confined to packfile) into an LLMConfig.
+func loadLLMConfig(path string) (LLMConfig, error) {
+	f, err := os.Open(cleanPath(path))
+	if err != nil {
+		return LLMConfig{}, fmt.Errorf("cli: open llm config %s: %w", path, err)
+	}
+	defer f.Close()
+
+	var cfg LLMConfig
+	if err := packfile.StrictDecode(f, &cfg); err != nil {
+		return LLMConfig{}, fmt.Errorf("cli: decode llm config %s: %w", path, err)
+	}
+	return cfg, nil
+}
+
+// --- provider API key presence (never value) ---
+
+// providerEnvVar mirrors cmd/mpqt's own naming convention (Task 12 Step 4):
+// the provider name upper-cased with "-" -> "_" plus "_API_KEY".
+func providerEnvVar(provider model.ProviderName) string {
+	return strings.ToUpper(strings.ReplaceAll(string(provider), "-", "_")) + "_API_KEY"
+}
+
+// checkKeyPresence prints an informational, value-free note when the
+// provider's conventional API key env var is not set, so a user gets an
+// early, specific hint before what might otherwise be an opaque
+// client-construction failure. It never blocks and never echoes a value:
+// App.LookupEnv is presence-only by contract, and App.NewClient may source
+// credentials a different way entirely.
+func checkKeyPresence(app App, w io.Writer, provider model.ProviderName) {
+	if app.LookupEnv == nil {
+		return
+	}
+	name := providerEnvVar(provider)
+	if _, ok := app.LookupEnv(name); !ok {
+		fmt.Fprintf(w, "note: %s is not set in the environment\n", name)
+	}
+}
+
+// --- preflight pricing flags, shared by gen and run ---
+
+// pricingFlags is the common preflight flag set both gen and run register.
+type pricingFlags struct {
+	skipCostEstimate bool
+	maxCostUSD       float64 // -1 = no ceiling configured
+	pricingSnapshot  string
+	requirePriced    bool
+}
+
+func registerPricingFlags(fs *flag.FlagSet) *pricingFlags {
+	pf := &pricingFlags{maxCostUSD: -1}
+	fs.BoolVar(&pf.skipCostEstimate, "skip-cost-estimate", false,
+		"skip the preflight token/cost estimate entirely and proceed directly to the paid call")
+	fs.Float64Var(&pf.maxCostUSD, "max-estimated-cost-usd", -1,
+		"abort before any paid call if the estimated maximum cost exceeds this ceiling (USD)")
+	fs.StringVar(&pf.pricingSnapshot, "pricing-snapshot", "",
+		"a models.dev price snapshot: a local file path, or an https URL to fetch")
+	fs.BoolVar(&pf.requirePriced, "require-priced", false,
+		"abort before any paid call unless the estimate is fully priced (no unknown rate/dimension)")
+	return pf
+}
+
+// gatePreflight applies pf's ceiling/completeness rules to plan, printing an
+// explanation to w and returning ok=false with the exit code the caller must
+// return immediately whenever a rule is violated. Fail secure: an
+// explicitly-requested guarantee (a ceiling, --require-priced) that cannot be
+// proven because the estimate is incomplete is treated as a gate failure,
+// never a silent pass.
+func gatePreflight(pf *pricingFlags, plan pricing.Plan, w io.Writer) (ok bool, code int) {
+	if pf.requirePriced && (!plan.Expected.Known || !plan.Max.Known) {
+		fmt.Fprintf(w, "mpqt: --require-priced set but the cost estimate is incomplete (%s)\n", incompleteReason(plan))
+		return false, ExitPricing
+	}
+	if pf.maxCostUSD >= 0 {
+		if !plan.Max.Known {
+			fmt.Fprintf(w, "mpqt: --max-estimated-cost-usd=%.4f set but the maximum cost estimate is unknown (%s)\n", pf.maxCostUSD, incompleteReason(plan))
+			return false, ExitPricing
+		}
+		if plan.Max.USD > pf.maxCostUSD {
+			fmt.Fprintf(w, "mpqt: estimated maximum cost $%.4f exceeds ceiling $%.4f\n", plan.Max.USD, pf.maxCostUSD)
+			return false, ExitPricing
+		}
+	}
+	return true, ExitOK
+}
+
+func incompleteReason(plan pricing.Plan) string {
+	if !plan.Expected.Known && plan.Expected.Reason != "" {
+		return plan.Expected.Reason
+	}
+	if !plan.Max.Known && plan.Max.Reason != "" {
+		return plan.Max.Reason
+	}
+	return "unknown"
+}
+
+// printPlan renders a preflight plan as a short human summary.
+func printPlan(w io.Writer, label string, plan pricing.Plan) {
+	fmt.Fprintf(w, "%s: preflight: target calls=%d judge calls=%d input tokens~[%d,%d] output tokens~[%d,%d] (counter=%s)\n",
+		label, plan.TargetCalls, plan.JudgeCalls,
+		plan.InputTokens[0], plan.InputTokens[1], plan.OutputTokens[0], plan.OutputTokens[1], plan.CounterQuality)
+	fmt.Fprintf(w, "%s: preflight: expected cost %s, max cost %s\n", label, formatAmount(plan.Expected), formatAmount(plan.Max))
+	for _, u := range plan.Unknowns {
+		fmt.Fprintf(w, "%s: preflight note: %s\n", label, u)
+	}
+}
+
+func formatAmount(a pricing.Amount) string {
+	if !a.Known {
+		return "unknown (" + a.Reason + ")"
+	}
+	return fmt.Sprintf("$%.4f", a.USD)
+}
+
+// isURL reports whether s looks like an http(s) URL rather than a local
+// file path.
+func isURL(s string) bool {
+	return strings.HasPrefix(s, "https://") || strings.HasPrefix(s, "http://")
+}
+
+// cleanPath sanitizes an operator-supplied file path before it is opened.
+func cleanPath(p string) string {
+	return filepath.Clean(p)
+}
+
+// loadSnapshot resolves a pricing snapshot from a --pricing-snapshot flag
+// value: empty yields the zero Snapshot (every rate lookup then misses,
+// which ratesFor turns into an honest all-unknown pricing.Rates); an
+// http(s) URL is fetched with pricing.FetchSnapshot (already
+// redirect-safe); anything else is read as a local file and parsed with
+// pricing.ParseSnapshot.
+func loadSnapshot(ctx context.Context, app App, path string) (pricing.Snapshot, error) {
+	if path == "" {
+		return pricing.Snapshot{}, nil
+	}
+	if isURL(path) {
+		return pricing.FetchSnapshot(ctx, nil, path)
+	}
+	clean := cleanPath(path)
+	// #nosec G304 -- path is an operator-supplied --pricing-snapshot value;
+	// reading a file the operator names on their own filesystem is this
+	// command's whole job, not a privilege-boundary crossing.
+	data, err := os.ReadFile(clean)
+	if err != nil {
+		return pricing.Snapshot{}, fmt.Errorf("cli: read pricing snapshot %s: %w", path, err)
+	}
+	return pricing.ParseSnapshot(data, "file://"+clean, app.Now())
+}
+
+// ratesFor looks up snap's row for provider/modelName. A miss (including a
+// zero Snapshot with a nil Rows map) yields the zero pricing.Rates: every
+// dimension nil, i.e. honestly unknown rather than free.
+func ratesFor(snap pricing.Snapshot, provider, modelName string) pricing.Rates {
+	if snap.Rows == nil {
+		return pricing.Rates{}
+	}
+	if r, ok := snap.Rows[provider+"/"+modelName]; ok {
+		return r
+	}
+	return pricing.Rates{}
+}
