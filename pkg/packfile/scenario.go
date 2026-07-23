@@ -20,7 +20,7 @@ func (s ScenarioSpec) Scenario(defaultName, revision string) (eval.Scenario, err
 
 	input, err := s.input()
 	if err != nil {
-		return eval.Scenario{}, s.wrapErr(err)
+		return eval.Scenario{}, wrapPathErr(s.ID, err)
 	}
 
 	sc := eval.Scenario{
@@ -33,7 +33,7 @@ func (s ScenarioSpec) Scenario(defaultName, revision string) (eval.Scenario, err
 	}
 
 	if err := sc.Validate(); err != nil {
-		return eval.Scenario{}, s.wrapErr(err)
+		return eval.Scenario{}, wrapPathErr(s.ID, err)
 	}
 	return sc, nil
 }
@@ -129,13 +129,4 @@ func (s ScenarioSpec) labels() []eval.Label {
 		labels = append(labels, eval.Label{Key: eval.Name(k), Value: s.Labels[k]})
 	}
 	return labels
-}
-
-// wrapErr wraps err in a *Error naming the scenario ID, unless err is already
-// a *Error (in which case it is returned as-is to avoid double-wrapping).
-func (s ScenarioSpec) wrapErr(err error) error {
-	if _, ok := err.(*Error); ok {
-		return err
-	}
-	return &Error{Path: s.ID, Reason: err.Error()}
 }

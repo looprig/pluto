@@ -123,7 +123,7 @@ func decodeOptions(node *yaml.Node, out any) error {
 	}
 	data, err := yaml.Marshal(&filtered)
 	if err != nil {
-		return &Error{Path: "evaluators", Reason: "encode options: " + err.Error()}
+		return &Error{Path: "evaluators", Reason: "encode options: " + err.Error(), Err: err}
 	}
 	return strictDecode(bytes.NewReader(data), out)
 }
@@ -275,7 +275,7 @@ func buildMaxDuration(opts *yaml.Node, _ BuildContext) (eval.Evaluator, error) {
 	}
 	d, err := time.ParseDuration(o.Limit)
 	if err != nil {
-		return nil, &Error{Path: "evaluators/max-duration", Reason: "invalid limit duration: " + err.Error()}
+		return nil, &Error{Path: "evaluators/max-duration", Reason: "invalid limit duration: " + err.Error(), Err: err}
 	}
 	if d <= 0 {
 		return nil, &Error{Path: "evaluators/max-duration", Reason: "limit must be positive"}

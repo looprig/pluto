@@ -26,14 +26,14 @@ func (e *Environment) Template() (inference.Request, error) {
 			ts := &e.Tools[i]
 			raw, err := jsonFromNode(&ts.Schema)
 			if err != nil {
-				return inference.Request{}, wrapEnvironmentErr("environment/tools/"+ts.Name, err)
+				return inference.Request{}, wrapPathErr("environment/tools/"+ts.Name, err)
 			}
 			if err := inference.ValidateOutputSchema(inference.OutputSchema{
 				Name:   ts.Name,
 				Schema: raw,
 				Strict: true,
 			}); err != nil {
-				return inference.Request{}, wrapEnvironmentErr("environment/tools/"+ts.Name, err)
+				return inference.Request{}, wrapPathErr("environment/tools/"+ts.Name, err)
 			}
 			req.Tools = append(req.Tools, inference.Tool{
 				Name:        ts.Name,
@@ -79,7 +79,7 @@ func toolChoiceFromSpec(spec string) (inference.ToolChoice, error) {
 func outputSchemaFromSpec(spec *OutputSchemaSpec) (*inference.OutputSchema, error) {
 	raw, err := jsonFromNode(&spec.Schema)
 	if err != nil {
-		return nil, wrapEnvironmentErr("environment/output-schema", err)
+		return nil, wrapPathErr("environment/output-schema", err)
 	}
 	out := inference.OutputSchema{
 		Name:        spec.Name,
@@ -88,17 +88,7 @@ func outputSchemaFromSpec(spec *OutputSchemaSpec) (*inference.OutputSchema, erro
 		Strict:      spec.Strict,
 	}
 	if err := inference.ValidateOutputSchema(out); err != nil {
-		return nil, wrapEnvironmentErr("environment/output-schema", err)
+		return nil, wrapPathErr("environment/output-schema", err)
 	}
 	return &out, nil
-}
-
-// wrapEnvironmentErr wraps err in a *Error naming the environment path,
-// unless err is already a *Error (in which case it is returned as-is to
-// avoid double-wrapping).
-func wrapEnvironmentErr(path string, err error) error {
-	if _, ok := err.(*Error); ok {
-		return err
-	}
-	return &Error{Path: path, Reason: err.Error()}
 }

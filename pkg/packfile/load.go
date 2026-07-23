@@ -2,9 +2,7 @@ package packfile
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -43,16 +41,16 @@ type Document struct {
 func Load(fsys fs.FS, dir string) (*Document, error) {
 	sub, err := fs.Sub(fsys, dir)
 	if err != nil {
-		return nil, &Error{Path: dir, Reason: "invalid pack directory: " + err.Error()}
+		return nil, &Error{Path: dir, Reason: "invalid pack directory: " + err.Error(), Err: err}
 	}
 
 	packData, err := readBounded(sub, packFileName)
 	if err != nil {
-		return nil, &Error{Path: joinPath(dir, packFileName), Reason: "read pack.yaml: " + err.Error()}
+		return nil, &Error{Path: joinPath(dir, packFileName), Reason: "read pack.yaml: " + err.Error(), Err: err}
 	}
 	pf, err := DecodePack(bytes.NewReader(packData))
 	if err != nil {
-		return nil, &Error{Path: joinPath(dir, packFileName), Reason: err.Error()}
+		return nil, &Error{Path: joinPath(dir, packFileName), Reason: err.Error(), Err: err}
 	}
 
 	raw := map[string][]byte{packFileName: packData}
@@ -69,11 +67,11 @@ func Load(fsys fs.FS, dir string) (*Document, error) {
 
 		data, err := readBounded(sub, name)
 		if err != nil {
-			return nil, &Error{Path: joinPath(dir, name), Reason: "referenced table file not found: " + err.Error()}
+			return nil, &Error{Path: joinPath(dir, name), Reason: "referenced table file not found: " + err.Error(), Err: err}
 		}
 		tf, err := DecodeTable(bytes.NewReader(data))
 		if err != nil {
-			return nil, &Error{Path: joinPath(dir, name), Reason: err.Error()}
+			return nil, &Error{Path: joinPath(dir, name), Reason: err.Error(), Err: err}
 		}
 		raw[name] = data
 		tables = append(tables, tf)
@@ -81,7 +79,7 @@ func Load(fsys fs.FS, dir string) (*Document, error) {
 
 	unlisted, err := unlistedYAMLFiles(sub, listed)
 	if err != nil {
-		return nil, &Error{Path: dir, Reason: "list pack directory: " + err.Error()}
+		return nil, &Error{Path: dir, Reason: "list pack directory: " + err.Error(), Err: err}
 	}
 
 	return &Document{
@@ -244,9 +242,8 @@ func (d *Document) Lint() []string {
 	return findings
 }
 
-// readBounded reads name from fsys, enforcing MaxFileBytes without ever
-// buffering more than that bound plus one byte, the same discipline
-// strictDecode applies to the decode step itself.
+// readBounded reads name from fsys, enforcing MaxFileBytes via the same
+// boundedReadAll primitive strictDecode uses for the decode step itself.
 func readBounded(fsys fs.FS, name string) ([]byte, error) {
 	f, err := fsys.Open(name)
 	if err != nil {
@@ -254,15 +251,7 @@ func readBounded(fsys fs.FS, name string) ([]byte, error) {
 	}
 	defer f.Close()
 
-	lr := &io.LimitedReader{R: f, N: MaxFileBytes + 1}
-	data, err := io.ReadAll(lr)
-	if err != nil {
-		return nil, err
-	}
-	if len(data) > MaxFileBytes {
-		return nil, errors.New("file exceeds MaxFileBytes")
-	}
-	return data, nil
+	return boundedReadAll(f, MaxFileBytes)
 }
 
 // unlistedYAMLFiles returns the *.yaml/*.yml files in fsys's root that are

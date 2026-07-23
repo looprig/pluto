@@ -1,6 +1,8 @@
 package packfile
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"io"
 
@@ -191,14 +193,31 @@ func DecodePack(r io.Reader) (PackFile, error) {
 }
 
 func strictDecode(r io.Reader, out any) error {
-	lr := &io.LimitedReader{R: r, N: MaxFileBytes + 1}
-	dec := yaml.NewDecoder(lr)
+	data, err := boundedReadAll(r, MaxFileBytes)
+	if err != nil {
+		return &Error{Reason: err.Error(), Err: err}
+	}
+	dec := yaml.NewDecoder(bytes.NewReader(data))
 	dec.KnownFields(true)
 	if err := dec.Decode(out); err != nil {
-		return &Error{Reason: fmt.Sprintf("decode: %v", err)}
-	}
-	if lr.N <= 0 {
-		return &Error{Reason: "file exceeds MaxFileBytes"}
+		return &Error{Reason: fmt.Sprintf("decode: %v", err), Err: err}
 	}
 	return nil
+}
+
+// boundedReadAll reads r fully, rejecting input beyond limit bytes. It never
+// buffers more than limit+1 bytes: one byte past the limit is read (if
+// present) solely to detect the overflow, then discarded. This is the single
+// place packfile bounds an io.Reader's size, shared by strictDecode's YAML
+// decode path and load.go's raw pack/table byte reads.
+func boundedReadAll(r io.Reader, limit int64) ([]byte, error) {
+	lr := &io.LimitedReader{R: r, N: limit + 1}
+	data, err := io.ReadAll(lr)
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > limit {
+		return nil, errors.New("file exceeds MaxFileBytes")
+	}
+	return data, nil
 }
