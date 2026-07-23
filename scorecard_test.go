@@ -92,3 +92,34 @@ func TestScorecardStatusRollup(t *testing.T) {
 		}
 	}
 }
+
+func TestScorecardFindingAndSeverityCount(t *testing.T) {
+	t.Parallel()
+	// reporttest.Build's Fail assessments always carry finding code
+	// "quality_shortfall" at SeverityMedium. Three failing tables (one of
+	// them skipped) should count the two executed failures only.
+	sc := Scorecard{
+		Manifest: validManifest(),
+		Results: []TableResult{
+			{Pack: "p", Table: "t1", Dimension: "capability",
+				Report: reporttest.Build(t, eval.StatusFail, eval.StatusPass)},
+			{Pack: "p", Table: "t2", Dimension: "capability",
+				Report: reporttest.Build(t, eval.StatusFail)},
+			{Pack: "p", Table: "t3", Dimension: "capability",
+				Skipped: true, Missing: []Capability{CapabilityTools},
+				Report: reporttest.Build(t, eval.StatusFail)},
+		},
+	}
+	if got := sc.FindingCount("quality_shortfall"); got != 2 {
+		t.Errorf("FindingCount(quality_shortfall) = %d, want 2", got)
+	}
+	if got := sc.FindingCount("unknown_code"); got != 0 {
+		t.Errorf("FindingCount(unknown_code) = %d, want 0", got)
+	}
+	if got := sc.SeverityCount(eval.SeverityMedium); got != 2 {
+		t.Errorf("SeverityCount(medium) = %d, want 2", got)
+	}
+	if got := sc.SeverityCount(eval.SeverityCritical); got != 0 {
+		t.Errorf("SeverityCount(critical) = %d, want 0", got)
+	}
+}

@@ -119,3 +119,46 @@ func (s Scorecard) StatusRollup() (StatusRollup, error) {
 	}
 	return roll, nil
 }
+
+// FindingCount counts findings carrying code across every executed (non
+// skipped) table's assessments. This, together with SeverityCount, lets
+// Scorecard satisfy profile.Card.
+func (s Scorecard) FindingCount(code eval.FindingCode) int {
+	n := 0
+	for _, res := range s.Results {
+		if res.Skipped {
+			continue
+		}
+		for _, sample := range res.Report.Samples {
+			for _, a := range sample.Assessments {
+				for _, f := range a.Findings {
+					if f.Code == code {
+						n++
+					}
+				}
+			}
+		}
+	}
+	return n
+}
+
+// SeverityCount counts findings carrying severity across every executed
+// (non skipped) table's assessments.
+func (s Scorecard) SeverityCount(severity eval.Severity) int {
+	n := 0
+	for _, res := range s.Results {
+		if res.Skipped {
+			continue
+		}
+		for _, sample := range res.Report.Samples {
+			for _, a := range sample.Assessments {
+				for _, f := range a.Findings {
+					if f.Severity == severity {
+						n++
+					}
+				}
+			}
+		}
+	}
+	return n
+}
