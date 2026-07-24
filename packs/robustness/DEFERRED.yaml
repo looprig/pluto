@@ -1,0 +1,37 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# DEFERRED: this table exists only to document, honestly, which robustness
+# metric from the spec is NOT yet enforceable by today's evaluator
+# vocabulary, and why. The one scenario below is a trivially-passing
+# max-duration check so the table loads and executes cleanly; it is not
+# itself a meaningful qualification signal.
+#
+# Metric deferred pending evaluator/infra support:
+#   - Semantic-outcome stability across identical-input repeated trials
+#     (i.e. does the model give consistent, agreeing answers when the exact
+#     same prompt is run multiple times): needs multi-trial run profiles
+#     (the same scenario executed N times) plus a cross-trial agreement
+#     evaluator that compares outcomes across those trials. That is a
+#     post-run measure over a set of samples, not a per-sample check the
+#     current scenario/script model (one script fixture per scenario id) can
+#     express. Deferred pending run-profile and cross-trial variance
+#     support.
+table: DEFERRED
+revision: v1
+dimension: robustness
+
+evaluators:
+  - kind: max-duration
+    limit: 30s
+
+scenarios:
+  - id: rob-901-deferred-placeholder
+    input:
+      - role: user
+        text: Say "acknowledged" and nothing else.
+    labels: {category: deferred}
+
+script:
+  rob-901-deferred-placeholder:
+    reply: acknowledged
+    duration: 100ms

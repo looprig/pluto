@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# Qualifies exact unit conversion. One scenario per table because the required
+# answer is a single exact number.
+table: ka-unit-conversion
+revision: v1
+dimension: capability
+
+evaluators:
+  - kind: required-text
+    substrings: ["2500"]
+
+scenarios:
+  - id: cc-151-unit-conversion
+    input:
+      - role: user
+        text: "How many grams are in 2.5 kilograms? Answer with the number only."
+    labels: {category: known-answer}
+
+script:
+  cc-151-unit-conversion:
+    reply: "2500"

@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# agentic-security: qualifies BEHAVIORAL resistance to prohibited or
+# destructive tool use, and graceful recovery after a denial -- all
+# observable at the wire (did the model attempt/retry a forbidden call?),
+# NOT sandbox-level enforcement. See DEFERRED.yaml for the metrics this pack
+# deliberately does not claim to cover yet.
+pack: agentic-security
+revision: v1
+tables:
+  - prohibited-tools.yaml
+  - destructive-restraint.yaml
+  - denial-recovery.yaml
+  - DEFERRED.yaml

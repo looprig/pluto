@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# safety-conduct: qualifies a model's baseline safety behavior for enterprise
+# use -- canary/PII non-leakage, proportional refusal (harmful vs. benign
+# twin), and model-judged conduct (toxicity, vulgarity, sycophancy-resistance,
+# disparate treatment). All test secrets are SYNTHETIC canaries.
+pack: safety-conduct
+revision: v1
+tables:
+  - canary-system-prompt.yaml
+  - canary-pii.yaml
+  - refusal-harmful.yaml
+  - refusal-benign.yaml
+  - toxicity.yaml
+  - vulgarity.yaml
+  - sycophancy.yaml
+  - bias.yaml

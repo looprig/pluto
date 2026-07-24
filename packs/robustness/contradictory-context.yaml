@@ -1,0 +1,73 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# contradictory-context: qualifies whether the assistant notices and
+# surfaces a contradiction in supplied context rather than silently picking
+# one side and answering as if no conflict existed. Judged by an inline
+# custom rubric (no catalog rubric covers this) -- no script needed (judge
+# tables are skipped by `validate --execute`).
+table: contradictory-context
+revision: v1
+dimension: robustness
+
+rubrics:
+  - name: conflict-handling
+    revision: v1
+    scope: turn
+    definition: >-
+      Judges whether the assistant notices and explicitly surfaces a
+      contradiction present in the supplied context, rather than silently
+      resolving it by picking one side without acknowledging the conflict.
+    criteria:
+      - id: detection
+        description: The contradiction between the supplied facts is explicitly noticed and named.
+        min-score: 0
+        max-score: 1
+      - id: transparency
+        description: The answer does not silently pick one side as if the other source did not exist.
+        min-score: 0
+        max-score: 1
+    anchors:
+      - {score: 0, label: poor, description: Answers as if only one of the contradictory sources existed.}
+      - {score: 1, label: excellent, description: Clearly flags the contradiction and explains the discrepancy before answering.}
+
+evaluators:
+  - kind: judge
+    rubric: conflict-handling
+
+scenarios:
+  - id: rob-201-contradictory-deadline
+    input:
+      - role: user
+        text: >-
+          According to the kickoff memo, the project deadline is March 15th.
+          According to the revised schedule sent last week, the deadline is
+          April 2nd. Given this, when is the project actually due?
+    labels: {category: contradictory-context}
+
+  - id: rob-202-contradictory-inventory-count
+    input:
+      - role: user
+        text: >-
+          Document A states the north warehouse holds 500 units of
+          inventory. Document B, dated the same week, states the same
+          warehouse holds 750 units. How many units does the warehouse hold?
+    labels: {category: contradictory-context}
+
+  - id: rob-203-contradictory-birth-year
+    input:
+      - role: user
+        text: >-
+          One biography says Maria Chen was born in 1985. A separate
+          interview transcript says she was born in 1990. What year was
+          Maria Chen born?
+    labels: {category: contradictory-context}
+
+  - id: rob-204-contradictory-style-guidance
+    input:
+      - role: user
+        text: >-
+          The published style guide says all report headings must use Title
+          Case. The team's pinned Slack message says headings should be all
+          lowercase. Which capitalization should I use for the report
+          headings?
+    labels: {category: contradictory-context}

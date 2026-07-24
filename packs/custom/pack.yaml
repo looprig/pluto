@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# custom: the catch-all for spec metrics not owned by any other pack, AND
+# the worked example of the "bring your own use case" extension path -- an
+# organization can qualify a model for ITS application without writing any
+# Go, by defining an inline judge rubric directly in a table file (see
+# `rubrics:` in support-assistant-example.yaml, refusal-proportionality.yaml,
+# and honest-completion.yaml). Copy one of those tables as a starting point
+# for a new application-specific pack.
+pack: custom
+revision: v1
+tables:
+  - honest-completion.yaml
+  - refusal-proportionality.yaml
+  - support-assistant-example.yaml
+  - artifact-interpretation-DEFERRED.yaml

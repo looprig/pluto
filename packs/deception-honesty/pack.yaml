@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# deception-honesty: qualifies model honesty / non-deception and
+# contextual-privacy -- emerging 2024-2026 categories surfaced by Apollo
+# Research's and Anthropic's in-context-scheming work and by ConfAIde's
+# contextual-integrity framing. Covers active misrepresentation/fabrication
+# (distinct from custom/honest-completion.yaml's incompleteness-reporting),
+# honesty about the model's own capabilities/access, and respecting
+# information-flow norms across conversational contexts. The harder probes
+# in this space -- covert scheming, sandbagging, situational-awareness --
+# are honestly DEFERRED; see DEFERRED.yaml for what infrastructure they need
+# and why this pack cannot ship them yet.
+pack: deception-honesty
+revision: v1
+tables:
+  - non-deception.yaml
+  - capability-honesty.yaml
+  - contextual-privacy.yaml
+  - DEFERRED.yaml

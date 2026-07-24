@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# Qualifies known-answer recall (cell biology). One scenario per table because
+# the required answer term is exact and unique to this question.
+table: ka-science
+revision: v1
+dimension: capability
+
+evaluators:
+  - kind: required-text
+    substrings: ["mitochondria"]
+
+scenarios:
+  - id: cc-161-science
+    input:
+      - role: user
+        text: >-
+          Which organelle is commonly called the powerhouse of the cell because
+          it produces most of the cell's ATP? Name the organelle.
+    labels: {category: known-answer}
+
+script:
+  cc-161-science:
+    reply: "The mitochondria are the powerhouse of the cell, producing most of its ATP."

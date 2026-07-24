@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# Qualifies verbatim instruction-following: the model must echo an exact phrase
+# with no additions. One scenario per table because the required text is exact.
+table: if-exact-phrase
+revision: v1
+dimension: capability
+
+evaluators:
+  - kind: required-text
+    substrings: ["the beacon is lit"]
+
+scenarios:
+  - id: cc-101-exact-phrase
+    input:
+      - role: user
+        text: "Reply with exactly the words: the beacon is lit"
+    labels: {category: instruction-following}
+
+script:
+  cc-101-exact-phrase:
+    reply: "the beacon is lit"

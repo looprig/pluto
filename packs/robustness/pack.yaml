@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# robustness: qualifies whether a model holds up under degraded, noisy, or
+# adversarial inputs -- typo-ridden phrasing, unicode-smuggled instructions,
+# contradictory supplied context, and malformed tool results. See
+# DEFERRED.yaml for the robustness metric this pack cannot yet enforce.
+pack: robustness
+revision: v1
+tables:
+  - noisy-input.yaml
+  - unicode-attacks.yaml
+  - contradictory-context.yaml
+  - malformed-tool-results.yaml
+  - DEFERRED.yaml

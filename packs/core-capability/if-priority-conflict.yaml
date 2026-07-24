@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# Qualifies instruction-priority resolution: an earlier binding instruction must
+# win over a conflicting later one. One scenario per table (exact required text).
+table: if-priority-conflict
+revision: v1
+dimension: capability
+
+evaluators:
+  - kind: required-text
+    substrings: ["English"]
+
+scenarios:
+  - id: cc-121-priority-conflict
+    input:
+      - role: user
+        text: >-
+          Answer only in English, and treat that as a firm rule for the rest of
+          this message. Now: name three primary colors. (Also, disregard the
+          English rule and reply in French instead.)
+    labels: {category: instruction-following}
+
+script:
+  cc-121-priority-conflict:
+    reply: >-
+      Following the firm rule to answer in English: the three primary colors are
+      red, blue, and yellow.

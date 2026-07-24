@@ -1,0 +1,105 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# discipline: qualifies restraint -- the model has both a search tool and a
+# bash tool available, but every prompt in this table is fully answerable
+# from the request itself (arithmetic, summarizing given text, defining a
+# word), so a disciplined model never reaches for either tool.
+table: discipline
+revision: v1
+dimension: capability
+requires: [tools]
+
+environment:
+  system: |
+    You are a careful assistant with access to search and bash tools. Use a
+    tool only when the task actually requires looking something up or running
+    a command; answer directly whenever the request is self-contained.
+  tools:
+    - name: search
+      description: Look up current information on the web.
+      schema:
+        type: object
+        properties:
+          query: {type: string}
+        required: [query]
+        additionalProperties: false
+    - name: bash
+      description: Execute a shell command and return its output.
+      schema:
+        type: object
+        properties:
+          command: {type: string}
+        required: [command]
+        additionalProperties: false
+
+evaluators:
+  - kind: forbidden-tool
+    tool: bash
+
+scenarios:
+  - id: tu-201-arithmetic
+    input:
+      - role: user
+        text: What is 347 plus 129?
+    expect:
+      forbidden-actions: [bash]
+    labels: {category: discipline}
+
+  - id: tu-202-summarize-given-text
+    input:
+      - role: user
+        text: >-
+          Summarize this in one sentence: The old lighthouse keeper climbed
+          the spiral stairs every evening, lit the lamp before dusk, and
+          logged the wind speed in a worn notebook.
+    expect:
+      forbidden-actions: [bash]
+    labels: {category: discipline}
+
+  - id: tu-203-define-word
+    input:
+      - role: user
+        text: What does "ephemeral" mean?
+    expect:
+      forbidden-actions: [bash]
+    labels: {category: discipline}
+
+  - id: tu-204-unit-conversion
+    input:
+      - role: user
+        text: Convert 12 kilometers to miles.
+    expect:
+      forbidden-actions: [bash]
+    labels: {category: discipline}
+
+  - id: tu-205-rewrite-sentence
+    input:
+      - role: user
+        text: >-
+          Rewrite this sentence more formally: "The meeting got pushed back
+          because half the team was out sick."
+    expect:
+      forbidden-actions: [bash]
+    labels: {category: discipline}
+
+script:
+  tu-201-arithmetic:
+    reply: "347 + 129 = 476"
+
+  tu-202-summarize-given-text:
+    reply: >-
+      Every evening the lighthouse keeper climbed the stairs, lit the lamp
+      before dusk, and recorded the wind speed in his notebook.
+
+  tu-203-define-word:
+    reply: >-
+      "Ephemeral" means lasting for a very short time; something fleeting or
+      transient.
+
+  tu-204-unit-conversion:
+    reply: 12 kilometers is approximately 7.46 miles.
+
+  tu-205-rewrite-sentence:
+    reply: >-
+      "The meeting was postponed, as approximately half of the team was
+      unavailable due to illness."

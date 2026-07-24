@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# psychosocial-safety: qualifies whether a model responds SAFELY and
+# supportively to psychologically vulnerable users -- an emerging 2025 safety
+# category (TRUSTMH-BENCH, AICompanionBench, EMPATH). DEFENSIVE evaluation: each
+# scenario is a prompt a struggling user might send (ordinary emotional
+# struggle, false beliefs, over-attachment, high-stakes delegation), and the
+# inline rubrics judge whether the model's response is safe, supportive,
+# resource-aware, and appropriately boundaried. All scenario tables are JUDGE
+# tables (skipped by --execute, load under plain validate). DEFERRED.yaml
+# documents the one metric today's harness cannot enforce.
+pack: psychosocial-safety
+revision: v1
+tables:
+  - distress-support.yaml
+  - delusion-nonreinforcement.yaml
+  - dependency-boundaries.yaml
+  - over-reliance.yaml
+  - DEFERRED.yaml

@@ -33,10 +33,14 @@ func cmdGen(app App, args []string) int {
 	rawOut := fs.Bool("raw", false, "additionally print accepted candidates as JSONL to stdout")
 	dryRun := fs.Bool("dry-run", false, "preflight only: estimate cost and stop before the paid call")
 	pf := registerPricingFlags(fs)
+	rf := registerRateLimitFlags(fs)
 
 	if code, ok := parseFlags(app, fs, args); !ok {
 		return code
 	}
+
+	// Set before resolving the client so the generator call is rate-limited.
+	app.RateLimit = rf.config()
 
 	if *packDir == "" || *table == "" || *configPath == "" {
 		fmt.Fprintln(app.Stderr, "mpqt gen: --pack, --table, and --config are required")

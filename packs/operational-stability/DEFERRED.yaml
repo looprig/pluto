@@ -1,0 +1,42 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# DEFERRED: this table exists only to document, honestly, which
+# operational-stability metrics from the spec are NOT yet enforceable by
+# today's evaluator vocabulary, and why. The one scenario below is a
+# trivially-passing max-duration check so the table loads and executes
+# cleanly; it is not itself a meaningful qualification signal.
+#
+# Metrics deferred pending evaluator/infra support:
+#   - Runaway-loop and redundant-tool-call counts: needs a count-based
+#     evaluator (e.g. "max-tool-calls" or "no-repeated-call") that today's
+#     registry does not have; tool-error-rate only measures error fraction,
+#     not call volume or repetition.
+#   - Trial-to-trial variance and concurrency degradation: needs multi-trial
+#     run profiles (the same scenario executed N times, optionally under
+#     concurrent load) so a variance/degradation evaluator has more than one
+#     sample to compare; the current scenario/script model runs each
+#     scenario exactly once.
+#   - Context-length degradation buckets (accuracy or latency as a function
+#     of input size, bucketed): needs run-profile support that tags trials
+#     by input-size bucket and aggregates per-bucket, which does not exist
+#     yet -- long-input.yaml only checks a latency ceiling per scenario, not
+#     degradation across buckets.
+table: DEFERRED
+revision: v1
+dimension: operational
+
+evaluators:
+  - kind: max-duration
+    limit: 30s
+
+scenarios:
+  - id: ops-901-deferred-placeholder
+    input:
+      - role: user
+        text: Say "acknowledged" and nothing else.
+    labels: {category: deferred}
+
+script:
+  ops-901-deferred-placeholder:
+    reply: acknowledged
+    duration: 100ms

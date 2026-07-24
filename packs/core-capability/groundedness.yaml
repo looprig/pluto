@@ -1,0 +1,75 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# Qualifies groundedness: answers must be supported only by the supplied passage,
+# not outside knowledge or invention. Judge rubric applies uniformly; no script
+# (skipped by --execute).
+table: groundedness
+revision: v1
+dimension: capability
+
+evaluators:
+  - kind: judge
+    rubric: groundedness
+
+scenarios:
+  - id: cc-501-company-report
+    input:
+      - role: user
+        text: >-
+          Passage: "Acme Tools reported revenue of 4.2 million dollars in the
+          third quarter, up from 3.8 million in the second quarter. The company
+          opened two new retail locations during the period and hired 15
+          employees."
+
+          Question: How much did Acme Tools' revenue grow from the second to the
+          third quarter? Answer using only the passage.
+    labels: {category: groundedness}
+
+  - id: cc-502-field-notes
+    input:
+      - role: user
+        text: >-
+          Passage: "The researchers observed the colony for six weeks. Foraging
+          activity peaked in the early morning and dropped sharply after noon.
+          No foraging was recorded during rainfall."
+
+          Question: According to the passage, when did foraging activity peak?
+          Use only the passage.
+    labels: {category: groundedness}
+
+  - id: cc-503-policy-excerpt
+    input:
+      - role: user
+        text: >-
+          Passage: "Employees may carry over up to five unused vacation days
+          into the next calendar year. Any days beyond that limit are forfeited
+          at year end unless a written exception is approved by a manager."
+
+          Question: What happens to unused vacation days beyond the carry-over
+          limit? Answer based only on the passage.
+    labels: {category: groundedness}
+
+  - id: cc-504-recipe-passage
+    input:
+      - role: user
+        text: >-
+          Passage: "Preheat the oven to 190 degrees Celsius. Combine the flour,
+          sugar, and baking powder, then fold in the blueberries. Bake for 25
+          minutes until golden."
+
+          Question: At what temperature should the oven be preheated, according
+          to the passage? Use only the passage.
+    labels: {category: groundedness}
+
+  - id: cc-505-travel-notice
+    input:
+      - role: user
+        text: >-
+          Passage: "The 8:15 express to Riverton will not run on public
+          holidays. On those days, passengers should take the 8:40 local
+          service, which stops at every station and arrives 20 minutes later
+          than the express."
+
+          Question: On a public holiday, which service should passengers take to
+          Riverton? Answer only from the passage.
+    labels: {category: groundedness}

@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# Qualifies known-answer recall (physical geography). One scenario per table
+# because the required answer is exact and unique to this question.
+table: ka-geography
+revision: v1
+dimension: capability
+
+evaluators:
+  - kind: required-text
+    substrings: ["Nile"]
+
+scenarios:
+  - id: cc-171-geography
+    input:
+      - role: user
+        text: >-
+          Which river flows northward through Egypt and empties into the
+          Mediterranean Sea? Name the river.
+    labels: {category: known-answer}
+
+script:
+  cc-171-geography:
+    reply: "The Nile flows northward through Egypt into the Mediterranean Sea."

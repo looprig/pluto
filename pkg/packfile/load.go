@@ -141,10 +141,24 @@ func (d *Document) Build(reg *Registry, bc BuildContext) (qual.Pack, error) {
 	return p, nil
 }
 
-// mergedRubrics builds the pack-wide rubric.Rubric map from every table's
-// RubricSpecs, rejecting a rubric name that appears in more than one table.
+// mergedRubrics builds the pack-wide rubric.Rubric map a judge kind resolves
+// against. It is seeded with eval's built-in rubric catalog (answer_relevance,
+// groundedness, instruction_adherence, goal_adherence, toxicity, vulgarity,
+// internet_use_appropriateness), so a pack may reference any catalog rubric by
+// name without redeclaring it, then merges every table's inline RubricSpecs on
+// top. A catalog name is reserved: an inline rubric that reuses one is rejected
+// rather than silently shadowing the shipped definition (which would make two
+// packs' "toxicity" scores incomparable). A rubric name appearing in more than
+// one inline table is likewise rejected.
 func (d *Document) mergedRubrics() (map[string]rubric.Rubric, error) {
 	merged := make(map[string]rubric.Rubric)
+	catalog := make(map[string]bool)
+	for _, rb := range rubric.Catalog() {
+		name := string(rb.Name)
+		merged[name] = rb
+		catalog[name] = true
+	}
+	inline := make(map[string]bool)
 	for _, tf := range d.Tables {
 		for _, rs := range tf.Rubrics {
 			rb, err := rs.Rubric()
@@ -152,9 +166,13 @@ func (d *Document) mergedRubrics() (map[string]rubric.Rubric, error) {
 				return nil, err
 			}
 			name := string(rb.Name)
-			if _, dup := merged[name]; dup {
+			if catalog[name] {
+				return nil, &Error{Path: "rubrics/" + name, Reason: "rubric name is reserved by eval's built-in catalog; reference it directly or choose another name"}
+			}
+			if inline[name] {
 				return nil, &Error{Path: "rubrics/" + name, Reason: "duplicate rubric name across pack"}
 			}
+			inline[name] = true
 			merged[name] = rb
 		}
 	}

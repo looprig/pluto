@@ -30,9 +30,10 @@ const digestLockfileName = "pack.digest"
 // earlier one fails, so a validate run always reports every problem it
 // found, never just the first.
 func cmdValidate(app App, args []string) int {
-	fs := newFlagSet("validate", "validate [dir...] [--api-format FMT] [--execute]")
+	fs := newFlagSet("validate", "validate [dir...] [--api-format FMT] [--execute] [--write-digests]")
 	apiFormat := fs.String("api-format", "", "check dialect projectability for this API format (v1: only \"\" is implemented; other values are accepted as a no-op with a note)")
 	execute := fs.Bool("execute", false, "additionally smoke-run every script-backed table offline through pkg/run.Execute")
+	writeDigests := fs.Bool("write-digests", false, "(re)write each pack's pack.digest lockfile from its current contents and revision, instead of verifying it")
 	if code, ok := parseFlags(app, fs, args); !ok {
 		return code
 	}
@@ -53,7 +54,7 @@ func cmdValidate(app App, args []string) int {
 
 	failed := false
 	for _, dir := range dirs {
-		if !validateOne(app, dir, *execute) {
+		if !validateOne(app, dir, *execute, *writeDigests) {
 			failed = true
 		}
 	}
@@ -66,7 +67,7 @@ func cmdValidate(app App, args []string) int {
 
 // validateOne validates a single pack directory and reports its own failure,
 // never aborting the caller's loop over the remaining directories.
-func validateOne(app App, dir string, execute bool) bool {
+func validateOne(app App, dir string, execute, writeDigests bool) bool {
 	fmt.Fprintf(app.Stdout, "validate: %s\n", dir)
 	ok := true
 
@@ -87,7 +88,11 @@ func validateOne(app App, dir string, execute bool) bool {
 		}
 	}
 
-	if !checkDigest(app, dir, doc) {
+	if writeDigests {
+		if !writeDigest(app, dir, doc) {
+			ok = false
+		}
+	} else if !checkDigest(app, dir, doc) {
 		ok = false
 	}
 
@@ -124,6 +129,25 @@ func checkDigest(app App, dir string, doc *packfile.Document) bool {
 		fmt.Fprintf(app.Stdout, "  error: read pack.digest: %v\n", err)
 		return false
 	}
+}
+
+// writeDigest (re)writes dir's pack.digest lockfile from doc's current
+// contents and revision. It is the maintainer-side counterpart to checkDigest:
+// after a deliberate scenario/evaluator change and revision bump, `mpqt
+// validate --write-digests packs/...` regenerates every lockfile so the
+// committed digests track the corpus. Writing is reported so a CI run that
+// accidentally passes the flag is visible in its log.
+func writeDigest(app App, dir string, doc *packfile.Document) bool {
+	lockPath := filepath.Join(dir, digestLockfileName)
+	// #nosec G306 -- a pack.digest lockfile is non-secret provenance meant to
+	// be committed and world-readable; 0o644 matches the repo's other tracked
+	// files.
+	if err := os.WriteFile(lockPath, packfile.DigestLockfile(doc), 0o644); err != nil {
+		fmt.Fprintf(app.Stdout, "  error: write pack.digest: %v\n", err)
+		return false
+	}
+	fmt.Fprintf(app.Stdout, "  wrote %s\n", lockPath)
+	return true
 }
 
 // packDirsFromArgs resolves the pack directories validate should check: the
@@ -171,11 +195,17 @@ func discoverPackDirs(root string) ([]string, error) {
 // whatever Execute returned even when Execute itself errors (ground rule:
 // Execute may return partial, still-usable results alongside an error).
 func executePack(ctx context.Context, app App, dir string, doc *packfile.Document) error {
-	pack, err := doc.Build(app.Registry, packfile.BuildContext{})
+	offline, judged := splitJudgeTables(doc)
+	if len(offline.Tables) == 0 {
+		fmt.Fprintf(app.Stdout, "  --execute: 0 table(s) executed, %d skipped (judge)\n", judged)
+		return nil
+	}
+
+	pack, err := offline.Build(app.Registry, packfile.BuildContext{})
 	if err != nil {
 		return fmt.Errorf("build pack: %w", err)
 	}
-	scripts, err := mergedScripts(doc)
+	scripts, err := mergedScripts(offline)
 	if err != nil {
 		return err
 	}
@@ -183,11 +213,33 @@ func executePack(ctx context.Context, app App, dir string, doc *packfile.Documen
 	target := fixtarget.NewScripted(dir, scripts)
 
 	res, err := run.Execute(ctx, run.Spec{Manifest: manifest, Packs: []qual.Pack{pack}, Target: target})
-	fmt.Fprintf(app.Stdout, "  --execute: %d table(s) executed, %d skipped\n", len(res.Reports), len(res.Skipped))
+	fmt.Fprintf(app.Stdout, "  --execute: %d table(s) executed, %d skipped, %d skipped (judge)\n",
+		len(res.Reports), len(res.Skipped), judged)
 	if err != nil {
 		return fmt.Errorf("execute: %w", err)
 	}
 	return nil
+}
+
+// splitJudgeTables returns a shallow Document copy holding only the pack's
+// offline-runnable (non-judge) tables, plus the count of judge tables left
+// out. A judge evaluator cannot be built without a judge client and cannot be
+// scored from a networkless scripted fixture, so --execute skips those tables
+// visibly rather than failing the whole pack. The copy shares Dir/Pack/Raw
+// with doc (untouched); only the Tables slice is filtered, which is all
+// Document.Build and mergedScripts read.
+func splitJudgeTables(doc *packfile.Document) (offline *packfile.Document, judged int) {
+	kept := make([]packfile.TableFile, 0, len(doc.Tables))
+	for _, tf := range doc.Tables {
+		if tf.UsesJudge() {
+			judged++
+			continue
+		}
+		kept = append(kept, tf)
+	}
+	cp := *doc
+	cp.Tables = kept
+	return &cp, judged
 }
 
 // scriptFromSpec converts a packfile.ScriptSpec (the strictly-decoded YAML

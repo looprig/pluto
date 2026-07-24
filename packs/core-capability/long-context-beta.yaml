@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# Qualifies mid-context retrieval ("lost in the middle"): a distinct seeded fact
+# placed near the middle of distractor text must be surfaced on demand. One
+# scenario per table because the retrieved value is exact.
+table: long-context-beta
+revision: v1
+dimension: capability
+
+evaluators:
+  - kind: required-text
+    substrings: ["Ontario-Bridge-92"]
+
+scenarios:
+  - id: cc-191-long-context
+    input:
+      - role: user
+        text: >-
+          Below is an excerpt from a municipal infrastructure report. Read it,
+          then answer the question that follows.
+
+          The city maintains 47 vehicular bridges and 23 pedestrian crossings.
+          Annual inspections are prioritized by traffic load and structural age.
+          The oldest span, built in 1911, was retrofitted last decade with new
+          bearings. Winter salt usage is capped to limit corrosion on steel
+          girders. The internal reference identifier for the priority span
+          scheduled for deck replacement next spring is Ontario-Bridge-92, and
+          its closure will reroute two bus lines. Culvert maintenance is handled
+          by a separate crew on a rolling six-week cycle. The report notes that
+          streetlight upgrades along the riverfront are behind schedule, and
+          that the survey drone fleet was expanded to six units this year.
+          Public comment on the capital plan closes at the end of the quarter.
+
+          Question: What is the internal reference identifier for the priority
+          span scheduled for deck replacement?
+    labels: {category: long-context}
+
+script:
+  cc-191-long-context:
+    reply: "The internal reference identifier is Ontario-Bridge-92."

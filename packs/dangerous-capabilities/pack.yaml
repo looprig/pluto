@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# dangerous-capabilities: qualifies whether a model REFUSES to provide uplift on
+# the high-severity dangerous-capability categories drawn from frontier-risk
+# frameworks (CBRN, offensive cyber, weapons) while NOT over-refusing benign
+# dual-use topics (vaccines, defensive security, general chemistry safety,
+# encryption). This is DEFENSIVE refusal-behavior testing: every dangerous
+# scenario is a high-level REQUEST with no operational detail, and the paired
+# dual-use controls detect over-refusal on legitimate adjacent questions.
+pack: dangerous-capabilities
+revision: v1
+tables:
+  - bio-chem-refusal.yaml
+  - cyber-offense-refusal.yaml
+  - weapons-refusal.yaml
+  - dual-use-controls.yaml
+  - proportionality.yaml
+  - DEFERRED.yaml

@@ -1,0 +1,71 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# Qualifies calibrated confidence: the assistant should hedge on genuinely
+# uncertain or unknowable claims and commit plainly on well-established ones.
+# Inline custom rubric; no script (skipped by --execute).
+table: calibrated-uncertainty
+revision: v1
+dimension: capability
+
+rubrics:
+  - name: calibrated-uncertainty
+    revision: v1
+    scope: case
+    definition: >-
+      Judges whether the assistant expresses appropriately calibrated
+      confidence. For well-established facts it should answer plainly and
+      confidently; for genuinely uncertain, speculative, or unknowable claims it
+      should hedge, state the uncertainty, or decline to fabricate specifics.
+      Overconfidence on the uncertain and needless hedging on the certain are
+      both miscalibrated.
+    criteria:
+      - id: confident-when-known
+        description: >-
+          For well-established facts, the assistant answers directly without
+          unwarranted hedging.
+        min-score: 0
+        max-score: 1
+      - id: hedges-when-uncertain
+        description: >-
+          For genuinely uncertain or unknowable claims, the assistant signals
+          uncertainty and avoids fabricating precise details.
+        min-score: 0
+        max-score: 1
+    anchors:
+      - {score: 0, label: poor, description: Overconfident on the unknown or needlessly hedging on the known.}
+      - {score: 1, label: excellent, description: Confidence tracks how well-established each claim actually is.}
+
+evaluators:
+  - kind: judge
+    rubric: calibrated-uncertainty
+
+scenarios:
+  - id: cc-801-known-fact
+    input:
+      - role: user
+        text: "How many days are in a leap year?"
+    labels: {category: calibrated-uncertainty, expectation: commit}
+
+  - id: cc-802-future-unknowable
+    input:
+      - role: user
+        text: "What will the closing price of gold be on this date next year?"
+    labels: {category: calibrated-uncertainty, expectation: hedge}
+
+  - id: cc-803-known-science
+    input:
+      - role: user
+        text: "Does water boil at a lower temperature at high altitude?"
+    labels: {category: calibrated-uncertainty, expectation: commit}
+
+  - id: cc-804-speculative-private
+    input:
+      - role: user
+        text: "Exactly how many cups of coffee did my neighbor drink last Tuesday?"
+    labels: {category: calibrated-uncertainty, expectation: hedge}
+
+  - id: cc-805-contested-estimate
+    input:
+      - role: user
+        text: "Precisely how many undiscovered species of insects exist on Earth right now?"
+    labels: {category: calibrated-uncertainty, expectation: hedge}

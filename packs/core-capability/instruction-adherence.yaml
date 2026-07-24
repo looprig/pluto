@@ -1,0 +1,72 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# Qualifies multi-constraint instruction following (tone + length + inclusion/
+# exclusion) under a judge rubric. Judge tables carry many diverse cases because
+# the rubric applies uniformly; no script (skipped by --execute).
+table: instruction-adherence
+revision: v1
+dimension: capability
+
+evaluators:
+  - kind: judge
+    rubric: instruction_adherence
+
+scenarios:
+  - id: cc-301-formal-two-sentence
+    input:
+      - role: user
+        text: >-
+          In exactly two sentences and a formal tone, explain what a compiler
+          does. Do not use the words "translate" or "code".
+    labels: {category: instruction-adherence}
+
+  - id: cc-302-cheerful-word-limit
+    input:
+      - role: user
+        text: >-
+          Write a cheerful welcome message for a community garden newsletter.
+          Keep it under 40 words and mention the word "seedlings" exactly once.
+    labels: {category: instruction-adherence}
+
+  - id: cc-303-bullet-count-exclusion
+    input:
+      - role: user
+        text: >-
+          Give three tips for reducing household energy use as a bulleted list
+          of exactly three items. Do not mention thermostats.
+    labels: {category: instruction-adherence}
+
+  - id: cc-304-neutral-no-first-person
+    input:
+      - role: user
+        text: >-
+          Summarize the plot of Romeo and Juliet in a neutral, encyclopedic tone
+          without using any first-person pronouns, in no more than three
+          sentences.
+    labels: {category: instruction-adherence}
+
+  - id: cc-305-persuasive-length-inclusion
+    input:
+      - role: user
+        text: >-
+          Write a short persuasive paragraph (60 to 80 words) encouraging people
+          to carpool. Include the phrase "shared ride" and end with a question.
+    labels: {category: instruction-adherence}
+
+  - id: cc-306-technical-no-jargon
+    input:
+      - role: user
+        text: >-
+          Explain how a vaccine works to a ten-year-old, in a friendly tone,
+          using no more than four sentences and avoiding the words "antigen" and
+          "antibody".
+    labels: {category: instruction-adherence}
+
+  - id: cc-307-recipe-constraints
+    input:
+      - role: user
+        text: >-
+          Give a vegetarian breakfast idea in a concise, upbeat tone. Keep it to
+          a single sentence and include at least two named ingredients, but do
+          not mention eggs.
+    labels: {category: instruction-adherence}

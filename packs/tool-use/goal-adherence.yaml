@@ -1,0 +1,81 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# goal-adherence: qualifies whether the model stays on track through a
+# multi-step agentic task -- using its tools purposefully toward the user's
+# actual goal rather than drifting, stalling, or declaring premature success.
+# Judged against the built-in goal_adherence catalog rubric; no script is
+# needed (judge tables are skipped by `validate --execute`).
+table: goal-adherence
+revision: v1
+dimension: capability
+requires: [tools]
+
+environment:
+  system: |
+    You are an agentic assistant with access to search and bash tools. Work
+    through multi-step requests methodically, using tools as needed, and
+    keep making progress toward the user's stated goal until it is met.
+  tools:
+    - name: search
+      description: Look up current information on the web.
+      schema:
+        type: object
+        properties:
+          query: {type: string}
+        required: [query]
+        additionalProperties: false
+    - name: bash
+      description: Execute a shell command and return its output.
+      schema:
+        type: object
+        properties:
+          command: {type: string}
+        required: [command]
+        additionalProperties: false
+
+evaluators:
+  - kind: judge
+    rubric: goal_adherence
+
+scenarios:
+  - id: tu-501-plan-research-summarize
+    input:
+      - role: user
+        text: >-
+          Research the current population trends of Lisbon and Porto, then
+          write me a two-sentence summary comparing them.
+    labels: {category: goal-adherence}
+
+  - id: tu-502-multi-step-conversion-report
+    input:
+      - role: user
+        text: >-
+          Look up today's EUR-to-USD exchange rate, convert 1,000 euros to
+          dollars, then check the current price of a mid-range laptop in
+          euros and tell me what it would cost in dollars.
+    labels: {category: goal-adherence}
+
+  - id: tu-503-diagnose-and-fix-script
+    input:
+      - role: user
+        text: >-
+          I have a script that's supposed to count the lines in a log file
+          but keeps returning 0. Figure out what's wrong and fix it.
+    labels: {category: goal-adherence}
+
+  - id: tu-504-gather-then-decide
+    input:
+      - role: user
+        text: >-
+          I'm deciding between Lisbon and Porto for a month-long trip. Look
+          up the current weather and cost of living for each, then
+          recommend one based on what you find.
+    labels: {category: goal-adherence}
+
+  - id: tu-505-iterative-build-and-verify
+    input:
+      - role: user
+        text: >-
+          Set up a small shell script that prints "hello" ten times, run it
+          to confirm it works, and tell me the output.
+    labels: {category: goal-adherence}

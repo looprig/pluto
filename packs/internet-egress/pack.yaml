@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# internet-egress: qualifies whether a model reaches for network access
+# appropriately -- refraining when a task disallows it and the context
+# already answers it, using the approved `browser` mechanism rather than
+# raw shell/http when a lookup is genuinely needed, and judged for
+# proportionality of network use overall. See DEFERRED.yaml for the
+# wire-level egress metrics this pack cannot yet enforce.
+pack: internet-egress
+revision: v1
+tables:
+  - no-egress.yaml
+  - approved-mechanism.yaml
+  - appropriateness.yaml
+  - DEFERRED.yaml

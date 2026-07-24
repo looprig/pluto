@@ -1,0 +1,141 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# long-input: qualifies bounded latency specifically under very large
+# repeated-context prompts (larger than the "long" case in latency.yaml),
+# with a wider 45s ceiling to accommodate the extra input processing time.
+table: long-input
+revision: v1
+dimension: operational
+
+evaluators:
+  - kind: max-duration
+    limit: 45s
+
+scenarios:
+  - id: ops-101-large-context-log-lines
+    input:
+      - role: user
+        text: >-
+          Below is an excerpt of application log lines. Ignore the noise and
+          answer the question at the end.
+
+          [INFO] worker-07 heartbeat ok, queue depth 12, latency 4ms
+
+          [INFO] worker-07 heartbeat ok, queue depth 11, latency 4ms
+
+          [INFO] worker-07 heartbeat ok, queue depth 13, latency 5ms
+
+          [INFO] worker-07 heartbeat ok, queue depth 12, latency 4ms
+
+          [INFO] worker-07 heartbeat ok, queue depth 10, latency 3ms
+
+          [INFO] worker-07 heartbeat ok, queue depth 14, latency 5ms
+
+          [INFO] worker-07 heartbeat ok, queue depth 12, latency 4ms
+
+          [INFO] worker-07 heartbeat ok, queue depth 11, latency 4ms
+
+          [INFO] worker-07 heartbeat ok, queue depth 13, latency 5ms
+
+          [INFO] worker-07 heartbeat ok, queue depth 12, latency 4ms
+
+          [INFO] worker-07 heartbeat ok, queue depth 10, latency 3ms
+
+          [INFO] worker-07 heartbeat ok, queue depth 14, latency 5ms
+
+          [INFO] worker-07 heartbeat ok, queue depth 12, latency 4ms
+
+          [INFO] worker-07 heartbeat ok, queue depth 11, latency 4ms
+
+          [INFO] worker-07 heartbeat ok, queue depth 13, latency 5ms
+
+          [INFO] worker-07 heartbeat ok, queue depth 12, latency 4ms
+
+          [INFO] worker-07 heartbeat ok, queue depth 10, latency 3ms
+
+          [INFO] worker-07 heartbeat ok, queue depth 14, latency 5ms
+
+          [INFO] worker-07 heartbeat ok, queue depth 12, latency 4ms
+
+          [INFO] worker-07 heartbeat ok, queue depth 11, latency 4ms
+
+          [INFO] worker-07 heartbeat ok, queue depth 13, latency 5ms
+
+          [INFO] worker-07 heartbeat ok, queue depth 12, latency 4ms
+
+          [INFO] worker-07 heartbeat ok, queue depth 10, latency 3ms
+
+          [INFO] worker-07 heartbeat ok, queue depth 14, latency 5ms
+
+          [WARN] worker-07 queue depth exceeded soft threshold once at 09:14:02Z
+
+          Question: did any log line above report an ERROR level entry?
+    labels: {category: long-input}
+
+  - id: ops-102-large-context-contract-clauses
+    input:
+      - role: user
+        text: >-
+          Review the following boilerplate contract clauses, then answer the
+          question at the end.
+
+          Clause 1. This agreement is governed by the laws of the applicable
+          jurisdiction without regard to conflict-of-law principles.
+
+          Clause 2. This agreement is governed by the laws of the applicable
+          jurisdiction without regard to conflict-of-law principles.
+
+          Clause 3. This agreement is governed by the laws of the applicable
+          jurisdiction without regard to conflict-of-law principles.
+
+          Clause 4. This agreement is governed by the laws of the applicable
+          jurisdiction without regard to conflict-of-law principles.
+
+          Clause 5. This agreement is governed by the laws of the applicable
+          jurisdiction without regard to conflict-of-law principles.
+
+          Clause 6. This agreement is governed by the laws of the applicable
+          jurisdiction without regard to conflict-of-law principles.
+
+          Clause 7. This agreement is governed by the laws of the applicable
+          jurisdiction without regard to conflict-of-law principles.
+
+          Clause 8. This agreement is governed by the laws of the applicable
+          jurisdiction without regard to conflict-of-law principles.
+
+          Clause 9. This agreement is governed by the laws of the applicable
+          jurisdiction without regard to conflict-of-law principles.
+
+          Clause 10. This agreement is governed by the laws of the applicable
+          jurisdiction without regard to conflict-of-law principles.
+
+          Clause 11. Notwithstanding the foregoing, disputes arising under
+          Section 4 shall be resolved exclusively through binding arbitration
+          in Wilmington, Delaware.
+
+          Clause 12. This agreement is governed by the laws of the applicable
+          jurisdiction without regard to conflict-of-law principles.
+
+          Clause 13. This agreement is governed by the laws of the applicable
+          jurisdiction without regard to conflict-of-law principles.
+
+          Clause 14. This agreement is governed by the laws of the applicable
+          jurisdiction without regard to conflict-of-law principles.
+
+          Clause 15. This agreement is governed by the laws of the applicable
+          jurisdiction without regard to conflict-of-law principles.
+
+          Question: which clause specifies where disputes under Section 4
+          must be arbitrated?
+    labels: {category: long-input}
+
+script:
+  ops-101-large-context-log-lines:
+    reply: >-
+      No -- none of the log lines above are at ERROR level; they are all
+      INFO, aside from one WARN about a soft queue-depth threshold.
+    duration: 5s
+
+  ops-102-large-context-contract-clauses:
+    reply: Clause 11 specifies that Section 4 disputes go to binding arbitration in Wilmington, Delaware.
+    duration: 10s

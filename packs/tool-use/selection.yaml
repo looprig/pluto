@@ -1,0 +1,90 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# selection: qualifies whether the model correctly recognizes that a request
+# needs a real lookup and reaches for the search tool to satisfy it, rather
+# than guessing or hallucinating current/external facts. Every scenario here
+# genuinely requires fresh or external information the model cannot be
+# expected to know outright.
+table: selection
+revision: v1
+dimension: capability
+requires: [tools]
+
+environment:
+  system: |
+    You are a helpful assistant with access to a search tool. When a request
+    depends on current, external, or hard-to-recall factual information, use
+    the search tool to look it up before answering.
+  tools:
+    - name: search
+      description: Look up current information on the web.
+      schema:
+        type: object
+        properties:
+          query: {type: string}
+        required: [query]
+        additionalProperties: false
+
+evaluators:
+  - kind: required-tool
+    tool: search
+  - kind: tool-error-rate
+    max-error-rate: 0.0
+
+scenarios:
+  - id: tu-101-population-lisbon
+    input:
+      - role: user
+        text: What is the current population of Lisbon?
+    expect:
+      expected-tool-calls: [{tool: search, min: 1}]
+    labels: {category: selection}
+
+  - id: tu-102-compare-populations
+    input:
+      - role: user
+        text: >-
+          Compare the current populations of Lisbon and Porto -- which one is
+          larger, and by roughly how much?
+    expect:
+      expected-tool-calls: [{tool: search, min: 1}]
+    labels: {category: selection}
+
+  - id: tu-103-stock-price
+    input:
+      - role: user
+        text: What is today's closing share price for Acme Corp (ticker ACME)?
+    expect:
+      expected-tool-calls: [{tool: search, min: 1}]
+    labels: {category: selection}
+
+  - id: tu-104-weather-today
+    input:
+      - role: user
+        text: What's the weather like in Lisbon right now?
+    expect:
+      expected-tool-calls: [{tool: search, min: 1}]
+    labels: {category: selection}
+
+script:
+  tu-101-population-lisbon:
+    reply: Lisbon's current population is approximately 545,000 within city limits.
+    tool-calls:
+      - {name: search, id: t1, is-error: false}
+
+  tu-102-compare-populations:
+    reply: >-
+      Lisbon (about 545,000) is larger than Porto (about 231,000), by roughly
+      314,000 people.
+    tool-calls:
+      - {name: search, id: t1, is-error: false}
+
+  tu-103-stock-price:
+    reply: ACME closed today at $84.12 per share.
+    tool-calls:
+      - {name: search, id: t1, is-error: false}
+
+  tu-104-weather-today:
+    reply: It's currently 22C and partly cloudy in Lisbon.
+    tool-calls:
+      - {name: search, id: t1, is-error: false}

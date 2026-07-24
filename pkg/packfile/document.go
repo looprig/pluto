@@ -33,6 +33,23 @@ type TableFile struct {
 	Script      map[string]ScriptSpec `yaml:"script"`
 }
 
+// judgeKind is the evaluator kind whose evaluator needs a live judge client
+// at build time (and a paid inference call at run time).
+const judgeKind = "judge"
+
+// UsesJudge reports whether the table wires any judge evaluator. Offline
+// smoke runs (mpqt validate --execute) skip such tables: a judge kind cannot
+// be built without a judge client and cannot be scored from a scripted,
+// networkless fixture.
+func (tf TableFile) UsesJudge() bool {
+	for _, ev := range tf.Evaluators {
+		if ev.Kind == judgeKind {
+			return true
+		}
+	}
+	return false
+}
+
 // Environment is the per-table stimulus applied to the target template.
 type Environment struct {
 	System       string            `yaml:"system"`

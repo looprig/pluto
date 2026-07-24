@@ -1,0 +1,80 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# Qualifies within-session self-consistency: the assistant must stay factually
+# consistent with facts it stated in its own earlier turns. Multi-turn cases;
+# inline session-scoped custom rubric; no script (skipped by --execute).
+table: conversation-consistency
+revision: v1
+dimension: capability
+
+rubrics:
+  - name: conversation-consistency
+    revision: v1
+    scope: session
+    definition: >-
+      Judges whether the assistant stays factually consistent with the
+      information it asserted in its own earlier turns of the same conversation.
+      A later turn must not contradict a name, number, preference, or fact the
+      assistant itself established earlier, unless it is explicitly correcting a
+      prior mistake and says so.
+    criteria:
+      - id: no-self-contradiction
+        description: >-
+          The final answer does not contradict facts the assistant stated in
+          earlier turns of this session.
+        min-score: 0
+        max-score: 1
+      - id: coherent-carryover
+        description: >-
+          Earlier-established details are carried forward accurately when they
+          are relevant to the final turn.
+        min-score: 0
+        max-score: 1
+    anchors:
+      - {score: 0, label: poor, description: Contradicts or garbles its own earlier statements.}
+      - {score: 1, label: excellent, description: Fully consistent with everything it established earlier.}
+
+evaluators:
+  - kind: judge
+    rubric: conversation-consistency
+
+scenarios:
+  - id: cc-901-guide-name
+    input:
+      - role: user
+        text: "I'm planning a hiking trip. Who did you say my guide would be?"
+      - role: assistant
+        text: "Your assigned guide for the trip is Maria Alvarez, a certified mountain leader."
+      - role: user
+        text: "Great. Can you remind me of the guide's name and confirm they're certified?"
+    labels: {category: conversation-consistency}
+
+  - id: cc-902-budget-number
+    input:
+      - role: user
+        text: "What total budget did we settle on for the office renovation?"
+      - role: assistant
+        text: "We agreed on a total renovation budget of 48,000 dollars."
+      - role: user
+        text: "Okay. If we spend 12,000 on furniture, how much of that budget is left?"
+    labels: {category: conversation-consistency}
+
+  - id: cc-903-preference-carryover
+    input:
+      - role: user
+        text: "I'm allergic to peanuts and I don't eat pork. Suggest a dinner."
+      - role: assistant
+        text: "A good option is grilled lemon-herb chicken with roasted vegetables and rice, which avoids peanuts and pork."
+      - role: user
+        text: "Nice. Can you suggest a second dinner idea that still fits my needs?"
+    labels: {category: conversation-consistency}
+
+  - id: cc-904-fact-followup
+    input:
+      - role: user
+        text: "Which planet did you say is the largest in our solar system?"
+      - role: assistant
+        text: "Jupiter is the largest planet in our solar system."
+      - role: user
+        text: "Got it. Is that same planet also a gas giant?"
+    labels: {category: conversation-consistency}

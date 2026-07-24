@@ -15,26 +15,45 @@ make secure          # gofmt check + vet + staticcheck + gosec + govulncheck
 All three must pass before a change is proposed. A test that passes without
 `-race` but not with it is not passing.
 
-`examples/qualification` is its own nested Go module. If your change touches
-the root `go.mod`, re-verify the nested module too — its `replace ../..`
-directive propagates root requirements:
+`cmd/mpqt` is its own nested Go module. If your change touches the root
+`go.mod`, re-verify the nested module too — its `replace ../..` directive
+propagates root requirements:
 
 ```sh
-cd examples/qualification && GOWORK=off go mod tidy && GOWORK=off go test -race ./...
+cd cmd/mpqt && GOWORK=off go mod tidy && GOWORK=off go build -trimpath ./...
 ```
 
 ## Changing packs, scenarios, or evaluators
 
+MPQT ships packs in two first-class forms; the rules differ slightly.
+
+**YAML packs (`packs/<name>/`, the shipped corpus).**
+
 - Scenario IDs are stable identities and unique across a whole pack. Never
   reuse or repurpose an ID.
-- **Any semantic change bumps the pack revision** — new or edited scenarios,
-  evaluator wiring, tool schemas, system prompts. Two scorecards are only
-  comparable when their pack revisions match, so an unbumped semantic change
-  silently corrupts comparisons.
-- Every pack keeps the three-test pattern: construction validity, a
+- **Any semantic change bumps the table `revision:`** — new or edited
+  scenarios, evaluator wiring, tool schemas, system prompts. A stale committed
+  `pack.digest` fails `mpqt validate` on exactly this ("revision bump
+  required"). After a deliberate change and revision bump, regenerate the
+  lockfiles: `mpqt validate --write-digests packs/*`.
+- Run `make packs` (or `mpqt validate --execute packs/*`) before proposing a
+  change: it strict-loads, lints, digest-checks, and offline-executes every
+  programmatic table. The compiled `TestShippedCorpus` guard in
+  `pkg/packfile` enforces the same over `go test`.
+- Every programmatic scenario carries a `script:` fixture encoding the
+  intended good-model behavior so the offline smoke run is meaningful; judge
+  tables need no script (they are skipped by `--execute`).
+- Never ship a scenario whose evaluator can't actually check what it tests.
+  Either enforce it, make it a judge table, or document the gap with a
+  `DEFERRED:` note in the table's comment header (see
+  `packs/agentic-security/DEFERRED.yaml` for the pattern).
+
+**Go codepacks (`pkg/codepacks/<name>/`).**
+
+- **Any semantic change bumps the pack `Revision`** constant.
+- Every codepack keeps the three-test pattern: construction validity, a
   conforming target passes the qualification profile, and a deviant target
-  produces failures. A new scenario that no deviant script exercises is not
-  yet tested.
+  produces failures.
 - Evaluators must be honest about missing evidence: return Unverified, never
   Pass, when the evidence a check needs is absent (see
   `pkg/codepacks/tooluse/v1.go` for a worked example of why).

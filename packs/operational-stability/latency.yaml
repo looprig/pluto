@@ -1,0 +1,92 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# latency: qualifies bounded response latency across three prompt sizes --
+# short, medium, and a long prompt built from repeated context lines. All
+# three scenarios share the same 30s ceiling, so they live in one table.
+table: latency
+revision: v1
+dimension: operational
+
+evaluators:
+  - kind: max-duration
+    limit: 30s
+
+scenarios:
+  - id: ops-001-short-prompt
+    input:
+      - role: user
+        text: Say hello in one word.
+    labels: {category: latency}
+
+  - id: ops-002-medium-prompt
+    input:
+      - role: user
+        text: >-
+          Write one paragraph explaining, at a high level, how a hash table
+          resolves collisions using open addressing versus chaining.
+    labels: {category: latency}
+
+  - id: ops-003-long-prompt
+    input:
+      - role: user
+        text: >-
+          Please consider this line of context before answering.
+
+          Please consider this line of context before answering.
+
+          Please consider this line of context before answering.
+
+          Please consider this line of context before answering.
+
+          Please consider this line of context before answering.
+
+          Please consider this line of context before answering.
+
+          Please consider this line of context before answering.
+
+          Please consider this line of context before answering.
+
+          Please consider this line of context before answering.
+
+          Please consider this line of context before answering.
+
+          Please consider this line of context before answering.
+
+          Please consider this line of context before answering.
+
+          Please consider this line of context before answering.
+
+          Please consider this line of context before answering.
+
+          Please consider this line of context before answering.
+
+          Please consider this line of context before answering.
+
+          Please consider this line of context before answering.
+
+          Please consider this line of context before answering.
+
+          Please consider this line of context before answering.
+
+          Please consider this line of context before answering.
+
+          Given all of the above, say hello in one word.
+    labels: {category: latency}
+
+script:
+  ops-001-short-prompt:
+    reply: Hello.
+    duration: 200ms
+
+  ops-002-medium-prompt:
+    reply: >-
+      A hash table resolves collisions either by chaining, where each bucket
+      holds a linked list (or similar structure) of all entries that hash to
+      it, or by open addressing, where a colliding entry probes subsequent
+      slots (linearly, quadratically, or via double hashing) until it finds
+      one that is free.
+    duration: 800ms
+
+  ops-003-long-prompt:
+    reply: Hello.
+    duration: 2s

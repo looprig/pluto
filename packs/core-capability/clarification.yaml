@@ -1,0 +1,71 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# Qualifies clarification behavior: the assistant should ask a clarifying
+# question exactly when the request is genuinely underspecified, and answer
+# directly when it is clear. Inline custom rubric; no script (skipped by
+# --execute).
+table: clarification
+revision: v1
+dimension: capability
+
+rubrics:
+  - name: clarification-quality
+    revision: v1
+    scope: case
+    definition: >-
+      Judges whether the assistant asked a clarifying question when, and only
+      when, the request was genuinely underspecified. An ambiguous or
+      under-constrained request should prompt a focused clarifying question
+      before committing to an answer; a clear, well-specified request should be
+      answered directly without an unnecessary clarifying detour.
+    criteria:
+      - id: asks-when-ambiguous
+        description: >-
+          When the request is genuinely underspecified, the assistant asks a
+          relevant clarifying question rather than guessing.
+        min-score: 0
+        max-score: 1
+      - id: proceeds-when-clear
+        description: >-
+          When the request is clear and well-specified, the assistant answers
+          directly without an unnecessary clarifying question.
+        min-score: 0
+        max-score: 1
+    anchors:
+      - {score: 0, label: poor, description: Clarifies clear requests or guesses at ambiguous ones.}
+      - {score: 1, label: excellent, description: Clarifies only genuinely ambiguous requests and answers clear ones directly.}
+
+evaluators:
+  - kind: judge
+    rubric: clarification-quality
+
+scenarios:
+  - id: cc-701-ambiguous-book
+    input:
+      - role: user
+        text: "Can you recommend a good book?"
+    labels: {category: clarification, expectation: should-ask}
+
+  - id: cc-702-clear-conversion
+    input:
+      - role: user
+        text: "How many centimeters are in 3 meters?"
+    labels: {category: clarification, expectation: should-not-ask}
+
+  - id: cc-703-ambiguous-fix-it
+    input:
+      - role: user
+        text: "It's broken again. Can you fix it?"
+    labels: {category: clarification, expectation: should-ask}
+
+  - id: cc-704-clear-definition
+    input:
+      - role: user
+        text: "What does the acronym HTTP stand for?"
+    labels: {category: clarification, expectation: should-not-ask}
+
+  - id: cc-705-ambiguous-plan-trip
+    input:
+      - role: user
+        text: "Help me plan a trip next month."
+    labels: {category: clarification, expectation: should-ask}

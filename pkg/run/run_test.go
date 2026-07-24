@@ -35,11 +35,10 @@ func conformingManifest() qual.Manifest {
 
 // scriptedFromPack builds a Scripted eval.Target that answers every scenario
 // in pack with a conforming structured-output reply, the same pattern
-// examples/qualification/qualification_test.go uses to fixture an offline
-// run for this pack (pkg/codepacks/structuredoutput.V1, a real, validated,
-// already-existing pack — this test exercises pkg/run.Execute's own
-// behavior, not YAML pack loading, which Phase 2's packfile tests already
-// cover).
+// pkg/mpqttest's own tests use to fixture an offline run for this pack
+// (pkg/codepacks/structuredoutput.V1, a real, validated, already-existing
+// pack — this test exercises pkg/run.Execute's own behavior, not YAML pack
+// loading, which the packfile tests already cover).
 func scriptedFromPack(name string, pack qual.Pack) *fixtarget.Scripted {
 	scripts := map[string]fixtarget.Script{}
 	for _, tbl := range pack.Tables {

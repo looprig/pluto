@@ -63,6 +63,15 @@ allowed to import `github.com/looprig/llm`:
   preservation; the shared core behind both `mpqttest` and the CLI's `run`.
 - `pkg/pricing` — models.dev snapshot parsing, cost/token estimation,
   redirect-safe snapshot fetch; llm-free (takes a `Counter` interface).
+- `pkg/ratelimit` — an `inference.Client` decorator adding client-side rate
+  limiting: an even-spacing requests-per-minute pacer, an in-flight
+  concurrency cap, and retry-with-exponential-backoff on 429 / 5xx / network
+  failures (detected via `inference/failure.APIError.Status`). llm-free
+  (wraps any `inference.Client`); `pkg/cli`'s `App.client` wraps every live
+  client with it, configured by `run`/`gen`'s `--max-rpm` /
+  `--max-concurrent-requests` / `--max-retries` flags. It cannot honor a
+  provider's `Retry-After` header because the inference transport does not
+  surface response headers on an error — backoff is the documented fallback.
 - `pkg/gen` — single-turn, structured-output scenario generation plus the
   mechanical validate/dedupe/append post-pass. Imports `gopkg.in/yaml.v3`
   directly for its `Append` step's comment-preserving `yaml.Node` surgery.

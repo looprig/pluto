@@ -35,10 +35,15 @@ func cmdRun(app App, args []string) int {
 	concurrency := fs.Int("concurrency", 0, "maximum concurrent samples (0 = sequential)")
 	out := fs.String("out", "mpqt-report.json", "reportjson output path")
 	pf := registerPricingFlags(fs)
+	rf := registerRateLimitFlags(fs)
 
 	if code, ok := parseFlags(app, fs, args); !ok {
 		return code
 	}
+
+	// Set before resolving any client so both the target and judge clients
+	// route through the same rate limiter.
+	app.RateLimit = rf.config()
 
 	if *manifestPath == "" || *profilePath == "" || len(packDirs) == 0 {
 		fmt.Fprintln(app.Stderr, "mpqt run: --manifest, --profile, and at least one --packs are required")

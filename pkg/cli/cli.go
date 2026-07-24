@@ -21,6 +21,7 @@ import (
 	"github.com/looprig/inference/model"
 	"github.com/looprig/mpqt/pkg/packfile"
 	"github.com/looprig/mpqt/pkg/pricing"
+	"github.com/looprig/mpqt/pkg/ratelimit"
 )
 
 // Process exit codes, per Main's own doc comment: 0 ok; 1 command failure; 2
@@ -46,15 +47,29 @@ type App struct {
 	LookupEnv      func(string) (string, bool)                 // for key presence checks (never values in output)
 	Stdout, Stderr io.Writer
 	Now            func() time.Time
+
+	// RateLimit configures client-side rate limiting (RPM pacing, concurrency
+	// cap, 429/5xx retry-with-backoff) applied to every live client this App
+	// hands out. The zero value disables it (a pure passthrough). The paid
+	// commands set it from their --max-rpm/--max-retries/--max-concurrent-
+	// requests flags before resolving any client, so both the target and the
+	// judge client route through the same limiter.
+	RateLimit ratelimit.Config
 }
 
-// client resolves a live inference.Client for m via App.NewClient, or a
-// clear, non-panicking error when no constructor was supplied.
+// client resolves a live inference.Client for m via App.NewClient, wrapped in
+// the App's rate limiter, or a clear, non-panicking error when no constructor
+// was supplied. ratelimit.New is a no-op passthrough when RateLimit is unset,
+// so an unconfigured App pays no wrapping cost.
 func (a App) client(m model.Model) (inference.Client, error) {
 	if a.NewClient == nil {
 		return nil, errors.New("mpqt: no LLM client configured (App.NewClient is nil); this command needs cmd/mpqt or another composition root that supplies one")
 	}
-	return a.NewClient(m)
+	c, err := a.NewClient(m)
+	if err != nil {
+		return nil, err
+	}
+	return ratelimit.New(c, a.RateLimit), nil
 }
 
 // counter resolves a pricing.Counter for m via App.NewCounter. A nil
@@ -298,6 +313,44 @@ func registerPricingFlags(fs *flag.FlagSet) *pricingFlags {
 	fs.BoolVar(&pf.requirePriced, "require-priced", false,
 		"abort before any paid call unless the estimate is fully priced (no unknown rate/dimension)")
 	return pf
+}
+
+// defaultMaxRetries is the out-of-the-box retry count for paid commands.
+// Retrying transient rate-limit/server failures is pure benefit, so it is on
+// by default; --max-retries 0 turns it off.
+const defaultMaxRetries = 4
+
+// rateLimitFlags holds the client-side rate-limit knobs shared by run and gen.
+type rateLimitFlags struct {
+	maxRPM        int
+	maxConcurrent int
+	maxRetries    int
+}
+
+func registerRateLimitFlags(fs *flag.FlagSet) *rateLimitFlags {
+	rf := &rateLimitFlags{}
+	fs.IntVar(&rf.maxRPM, "max-rpm", 0,
+		"cap requests per minute to the provider, spaced evenly (0 = unlimited); applies to target and judge calls")
+	fs.IntVar(&rf.maxConcurrent, "max-concurrent-requests", 0,
+		"cap simultaneous in-flight provider requests (0 = unlimited)")
+	fs.IntVar(&rf.maxRetries, "max-retries", defaultMaxRetries,
+		"retry a rate-limited (HTTP 429) or transient 5xx/network failure this many times, with exponential backoff (0 = no retry)")
+	return rf
+}
+
+// config projects the flags onto a ratelimit.Config. A negative --max-retries
+// is clamped to 0 (disabled) rather than rejected, so the flag can never make
+// a paid command abort before it starts.
+func (rf *rateLimitFlags) config() ratelimit.Config {
+	retries := rf.maxRetries
+	if retries < 0 {
+		retries = 0
+	}
+	return ratelimit.Config{
+		MaxRPM:        rf.maxRPM,
+		MaxConcurrent: rf.maxConcurrent,
+		MaxRetries:    retries,
+	}
 }
 
 // gatePreflight applies pf's ceiling/completeness rules to plan, printing an

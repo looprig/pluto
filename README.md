@@ -39,10 +39,11 @@ other:
   `packs/`, loaded by `pkg/packfile` and run by the `mpqt` binary
   (`cmd/mpqt`). No Go required to write or run a pack.
 - **Go code** — packs as `qual.Pack` values in `pkg/codepacks/`, run directly
-  with `pkg/mpqttest` inside ordinary `go test`, as
-  `examples/qualification/qualification_test.go` still does. This path is
-  permanent, not a legacy holdover: it is how the five built-in packs
-  (`core-capability`, `tool-use`, `structured-output`, `safety-conduct`,
+  with `pkg/mpqttest` inside ordinary `go test`, exactly as
+  `pkg/mpqttest/run_test.go` and each pack's own
+  `pkg/codepacks/*/v1_test.go` do. This path is permanent, not a legacy
+  holdover: it is how the five built-in packs (`core-capability`,
+  `tool-use`, `structured-output`, `safety-conduct`,
   `operational-stability`) ship, and it is the natural choice for a
   Go-native test suite that wants packs as ordinary compiled values rather
   than a separate file format.
@@ -60,10 +61,14 @@ tree out of the root module's graph):
 cd cmd/mpqt && GOWORK=off go build -o mpqt ./...
 ```
 
-`packs/example/` is a minimal, committed reference pack — a single table
-(`discipline.yaml`) with one tool (`search`) and a `forbidden-tool` evaluator
-asserting the assistant doesn't call it for trivial requests. Use it as the
-model for a hand-authored pack, or scaffold your own:
+`packs/` ships eleven real, committed packs — 63 tables and 208 scenarios in
+total, spanning the capability, safety, security, internet, operational,
+robustness, memorization, and custom-application dimensions (see "Pack
+catalogue" below for the full breakdown). `packs/tool-use/discipline.yaml` is
+a good one to read first: a single table with one tool (`search`) and a
+`forbidden-tool` evaluator asserting the assistant doesn't call it for
+trivial requests. Use any shipped pack as the model for a hand-authored pack,
+or scaffold your own:
 
 ```
 $ mpqt init my-assistant
@@ -78,9 +83,9 @@ Edit the template — paste your real system prompt and tools, replace the
 placeholder evaluator and scenario — then validate:
 
 ```
-$ mpqt validate --execute packs/example
-validate: packs/example
-  --execute: 1 table(s) executed, 0 skipped
+$ mpqt validate --execute packs/tool-use
+validate: packs/tool-use
+  --execute: 3 table(s) executed, 0 skipped, 2 skipped (judge)
 ```
 
 `validate` strictly loads every pack directory, runs `Document.Lint` (unlisted
@@ -111,7 +116,7 @@ Generate more candidate scenarios with an LLM (needs a committed, secret-free
 environment — see `LLMConfig` in `pkg/cli/cli.go`):
 
 ```
-mpqt gen --pack packs/example --table discipline -n 5 --config gen.yaml
+mpqt gen --pack packs/tool-use --table discipline -n 5 --config gen.yaml
 ```
 
 `gen` prints a preflight token/cost estimate before the paid call, mechanically
@@ -124,19 +129,40 @@ Run a pack against a live target (needs a `qual.Manifest` and a
 for the exact field mapping):
 
 ```
-mpqt run --manifest target.yaml --profile enterprise.yaml --packs packs/example --require qualified
+mpqt run --manifest target.yaml --profile enterprise.yaml --packs packs/tool-use --require qualified
 ```
 
 `run` performs the same capability preflight as `qual.Plan`, prints a
 token/cost estimate (unless `--skip-cost-estimate`), executes every runnable
 table against the live target, writes a canonical `reportjson` report, and
 exits nonzero (`ExitGateFailed`, 3) unless the resulting disposition meets
-`--require` (default `qualified`). Gate a candidate against an incumbent's
-prior report the same way CI would:
+`--require` (default `qualified`).
+
+**Rate limiting.** Tables and scenarios execute sequentially by default (one
+provider request at a time; `--concurrency` opts into bounded parallel
+samples). Both `run` and `gen` also apply client-side rate limiting to every
+target and judge call:
+
+- `--max-retries` (default 4) — retry a rate-limited (HTTP 429) or transient
+  5xx/network failure with exponential backoff and jitter; `0` disables it.
+  On by default because retrying a transient failure is pure benefit.
+- `--max-rpm` (default 0 = unlimited) — cap requests per minute, spaced evenly
+  so a run never bursts past a provider's ceiling.
+- `--max-concurrent-requests` (default 0 = unlimited) — cap simultaneous
+  in-flight requests.
+
+These live in `pkg/ratelimit` as an `inference.Client` decorator, so they
+apply however the client is constructed. (A provider's `Retry-After` header
+is not honored — the inference transport doesn't surface response headers on
+an error — so backoff is the fallback.)
+
+Gate a candidate against an incumbent's prior report the same way CI would
+(illustrative output — the table names and counts depend on which packs the
+two reports actually ran):
 
 ```
 $ mpqt compare --candidate candidate-report.json --incumbent incumbent-report.json
-compare: example/discipline regressed=0 improved=1 unchanged=1 incompatible=0
+compare: tool-use/discipline regressed=0 improved=1 unchanged=1 incompatible=0
 compare: total regressions=0
 ```
 
@@ -159,10 +185,10 @@ compare: total regressions=0
 
 ### Go + codepacks walkthrough
 
-The offline example in `examples/qualification/qualification_test.go` runs
-the structured-output pack (`pkg/codepacks/structuredoutput`) against a
-scripted, deterministic target and gates on `profile.Qualified` — no YAML, no
-CLI, just `qual.Pack` values and `pkg/mpqttest` inside `go test`:
+This illustrates the shape (it is not a file that exists verbatim in the
+repo): a pack's `V1()` runs against a scripted, deterministic target and
+gates on `profile.Qualified` — no YAML, no CLI, just `qual.Pack` values and
+`pkg/mpqttest` inside `go test`:
 
 ```go
 func TestOfflineQualification(t *testing.T) {
@@ -200,40 +226,24 @@ func TestOfflineQualification(t *testing.T) {
 }
 ```
 
-Run it like any other test:
+For compiled, runnable proof of exactly this pattern (including a deviant
+target that fails to qualify, and a manifest that omits a capability so a
+table is skipped), see `pkg/mpqttest/run_test.go`. Every codepack also proves
+itself in isolation the same way in its own `pkg/codepacks/*/v1_test.go`
+(`TestPackV1Valid`, `TestPackV1AgainstConformingTarget`,
+`TestPackV1AgainstMalformedTarget` per pack). Run them like any other tests:
 
 ```
-GOWORK=off go test -race ./examples/qualification
+GOWORK=off go test -race ./pkg/mpqttest/... ./pkg/codepacks/...
 ```
 
-## Live qualification
-
-`examples/qualification/live_test.go` runs the same pack against a real
-OpenRouter model over `github.com/looprig/llm/auto` and
-`github.com/looprig/eval/target/inference`. It is gated behind the
-`qualification` build tag so it never runs (or requires network/credentials)
-as part of the default suite. `examples/qualification` is its own nested Go
-module (`examples/qualification/go.mod`) rather than part of the root
-module: `llm`/`inference` pull in a sizable transitive dependency chain (TEE
-attestation, crypto) that only this one example needs, and nesting it keeps
-that weight and audit surface out of every other MPQT consumer's module
-graph:
-
-```
-cd examples/qualification
-GOWORK=off go test -tags qualification -count=1 ./...
-```
-
-Set `OPENROUTER_API_KEY` in the environment first; the test skips itself when
-the key is absent. `-count=1` defeats test caching, which matters here since
-the point of the run is to observe the live target again, not to reuse a
-cached pass.
-
-The live test also uses a distinct `qualification` build tag rather than this
-repo's house `integration` convention, to distinguish a live-credentialed,
-cost-incurring example from generic process-boundary integration tests.
+Running a pack against a real, live model — as opposed to the scripted
+fixture target above — is `mpqt run`'s job (see "YAML + CLI walkthrough"
+above); there is no separate Go-test path for a live run.
 
 ## Pack catalogue
+
+### Go codepacks (`pkg/codepacks/`)
 
 | Pack | Revision | Dimension | Required capabilities |
 |---|---|---|---|
@@ -247,13 +257,114 @@ Every pack's `V1()` constructor is pure (no I/O) and every table declares its
 own `Requires` capabilities independently, so `qual.Plan` can skip individual
 tables — for example `operational-stability`'s latency table still runs
 against a manifest with no declared capabilities, while its tool-errors table
-is skipped.
+is skipped. These five stay Go code permanently — see "Quick start" above.
 
-These five stay Go code permanently (`pkg/codepacks/`) — see "Quick start"
-above. The parallel YAML corpus under `packs/` currently ships one reference
-pack, `example` (dimension `capability`, requires `tools`), meant as a
-worked example for hand-authoring a pack rather than a transcription of the
-five built-ins; nothing requires the two corpora to mirror each other.
+### YAML corpus (`packs/`)
+
+Fifteen packs, 82 tables, 272 scenarios total:
+
+| Pack | Tables | Scenarios | Dimension | Required capabilities |
+|---|---|---|---|---|
+| `core-capability` | 18 | 52 | capability | none |
+| `tool-use` | 5 | 22 | capability | `tools` |
+| `structured-output` | 2 | 9 | capability | `structured_output` |
+| `instruction-hierarchy` | 4 | 15 | instruction-hierarchy | `tools` (`user-over-tool` table only; the other three need none) |
+| `safety-conduct` | 8 | 28 | safety | none |
+| `prompt-injection` | 5 | 23 | safety | `tools` (`bypass-after-denial` table only; the other four need none) |
+| `dangerous-capabilities` | 6 | 17 | safety | none |
+| `deception-honesty` | 4 | 14 | safety | none |
+| `psychosocial-safety` | 5 | 18 | wellbeing | none |
+| `agentic-security` | 4 | 12 | security | `tools` |
+| `internet-egress` | 4 | 13 | internet | `tools` |
+| `operational-stability` | 4 | 8 | operational | `tools` (`tool-errors` table only; `latency`/`long-input` need none) |
+| `robustness` | 5 | 17 | robustness | `tools` (`malformed-tool-results` table only; the other four need none) |
+| `memorization` | 4 | 10 | memorization | none |
+| `custom` | 4 | 14 | custom | none |
+
+The last two capability packs and the three extra safety packs
+(`instruction-hierarchy`, `dangerous-capabilities`, `deception-honesty`,
+`psychosocial-safety`) track evaluation categories that emerged in
+2025–2026 frontier-model work and are kept distinct from their nearest
+neighbours: `instruction-hierarchy` tests *benign* system-over-user-over-tool
+precedence and constraint persistence (not the adversarial injection
+`prompt-injection` covers); `dangerous-capabilities` is CBRN / offensive-cyber
+/ weapons uplift refusal with paired dual-use controls (a higher-severity,
+category-specific cut of `safety-conduct`'s general refusal); `deception-honesty`
+scores active misrepresentation and contextual-integrity information flow
+(distinct from `custom`'s honest-*completion* and from verbatim canary
+leakage); `psychosocial-safety` scores safe handling of vulnerable users
+(distinct from `safety-conduct`'s sycophancy).
+
+`custom` doubles as the worked "qualify a model for *your* application"
+example: `custom/support-assistant-example.yaml` is a fictional SaaS billing
+assistant with its own `environment.system` prompt and an inline judge
+rubric (`rubrics:`) scoped to that application's actual quality bar —
+`honest-completion.yaml` and `refusal-proportionality.yaml` are further
+inline-rubric examples in the same table format. Copy any of the three as a
+starting point for your own product's pack.
+
+Several packs' `requires:` are per-table, not pack-wide, exactly like
+`operational-stability`'s Go counterpart above: `qual.Plan` skips only the
+tables whose declared capability the manifest lacks, running the rest.
+
+The YAML pack names that overlap Go codepack names (`core-capability`,
+`tool-use`, `structured-output`, `safety-conduct`) are **independent
+corpora** — different tables, different scenario counts, different
+revisions — not a transcription of one into the other. Nothing requires the
+two to mirror each other, and a change to one does not obligate a matching
+change to the other.
+
+## Coverage and deferrals
+
+The packs measure what a conversation trace and a text/tool-call evaluator
+can honestly observe today; several spec metrics need evidence
+infrastructure this repo does not yet produce, and are deliberately
+deferred rather than faked. Each gap is documented in-place — a `DEFERRED`
+table or comment block in the affected pack (`mpqt evaluators` lists every
+evaluator kind actually available, so you can see the gap yourself):
+
+- **`agentic-security`** — sandbox-escape, secret-file reads,
+  out-of-workspace writes, persistence/privilege-escalation, and
+  insecure-codegen CWE scoring all need filesystem/process evidence from
+  `github.com/looprig/sandbox` (or a static analyzer, for codegen) hooked
+  into the evaluator pipeline; none is wired up yet
+  (`agentic-security/DEFERRED.yaml`).
+- **`internet-egress`** — actual destination/exfiltration capture needs a
+  recording proxy and a `URLAssessor` sitting between the target and the
+  network; today's tables can only observe which *mechanism* the model
+  reached for, not where a real request actually went
+  (`internet-egress/DEFERRED.yaml`).
+- **`operational-stability` / `robustness`** — response-variance and
+  semantic-stability metrics need multi-trial run profiles (the same
+  scenario run N times and compared), which the CLI's current single-run
+  `eval.RunConfig` doesn't yet drive per table
+  (`operational-stability/DEFERRED.yaml`, `robustness/DEFERRED.yaml`).
+- **`memorization`** — true memorization measurement needs matching against
+  a reference training-adjacent corpus; today's tables use synthetic seeded
+  canaries as a proxy, which proves non-*leakage* of a planted secret, not
+  absence of memorization in general (`memorization/DEFERRED.yaml`).
+- **`custom`** — artifact interpretation (reading a chart, scanned document,
+  or embedded adversarial text in an image/PDF) needs an image/PDF
+  transport to the target and a multimodal judge; the harness today is
+  text-only (`custom/artifact-interpretation-DEFERRED.yaml`).
+- **`dangerous-capabilities`** — the tables measure refusal *behaviour*, not
+  uplift *magnitude* (whether a non-refused answer would meaningfully raise a
+  bad actor's real capability); grading that needs domain-expert reviewers or
+  held-out capability oracles, and encoding real harmful content to test it
+  would itself be unsafe (`dangerous-capabilities/DEFERRED.yaml`).
+- **`deception-honesty`** — scheming (covert/deferred subversion), sandbagging
+  (deliberately underperforming to dodge scrutiny), and situational-awareness
+  probes need a held-out capability oracle and multi-turn agentic environments
+  with simulated oversight; only single-turn honesty and contextual-integrity
+  are enforced today (`deception-honesty/DEFERRED.yaml`).
+- **`psychosocial-safety`** — longitudinal drift (emotional dependency or
+  delusion reinforcement accumulating across many sessions) needs persistent
+  multi-session memory/state and long-horizon run profiles; only single-session
+  safe handling is enforced today (`psychosocial-safety/DEFERRED.yaml`).
+
+Each `DEFERRED.yaml` still loads and executes cleanly — it carries one
+trivially-passing placeholder scenario so `mpqt validate --execute` has
+something to point to — rather than silently vanishing from the pack.
 
 ## Profile semantics
 
@@ -307,26 +418,40 @@ whichever fits, per pack:
   at the composition root; custom packs are just values of `qual.Pack`, so
   private packs live in your own repo and run through the same
   `mpqttest.Run`.
-- **YAML pack** (`packs/<name>/*.yaml`, `packs/example/` as the worked
-  example):
+- **YAML pack** (`packs/<name>/*.yaml`; `packs/tool-use/discipline.yaml` is a
+  small, easy one to copy the shape of, and `packs/custom/` is the worked
+  "bring your own application" example — see "Pack catalogue" above):
   - **Manually**: append a scenario block to the table's YAML file and run
     `mpqt validate`. Every file carries a `# yaml-language-server: $schema=…`
     header, so any editor running the standard YAML language server (VS Code
     via the Red Hat YAML extension, JetBrains, Neovim) gives completion,
     hover documentation, and inline validation against the shipped JSON
     Schema; `mpqt schema` prints it and `mpqt evaluators` lists every
-    evaluator kind, its options, and the evidence it needs.
-  - **With an LLM**: `mpqt gen --pack packs/example --table discipline -n 5
+    evaluator kind, its options, and the evidence it needs. A judge table's
+    `rubric:` can either name one of eval's built-in catalog rubrics
+    (`answer_relevance`, `groundedness`, `instruction_adherence`,
+    `goal_adherence`, `toxicity`, `vulgarity`,
+    `internet_use_appropriateness`) with no further block, or define its own
+    rubric inline under `rubrics:` — an inline rubric may not reuse a catalog
+    name.
+  - **With an LLM**: `mpqt gen --pack packs/tool-use --table discipline -n 5
     --config gen.yaml` generates candidate scenarios via structured output —
     prompted with the table's real tool schemas, evaluator constraints, and
     existing scenarios as seeds — then validates, dedupes, and appends them
     with provenance labels. You review the git diff. Model choice lives in a
     committed config file; the API key comes only from the environment.
 
+`mpqt validate --execute packs/*` (what `make packs` runs in CI) smoke-runs
+every programmatic table offline with no network or cost, reporting how many
+judge tables it skipped (`N skipped (judge)`) since those need a live judge
+client rather than a script.
+
 Either way, bump the table's `revision:` (YAML) or the pack's `Revision`
 constant (Go) for any semantic change, and re-run `mpqt validate` (YAML) or
 the pack's own tests (Go) — a stale committed `pack.digest` lockfile fails
-`mpqt validate` on exactly this ("revision bump required").
+`mpqt validate` on exactly this ("revision bump required"). Regenerate a YAML
+pack's lockfile after a deliberate, revision-bumped change with
+`mpqt validate --write-digests packs/*` and commit the result.
 
 ## Roadmap
 

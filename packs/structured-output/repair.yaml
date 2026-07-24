@@ -1,0 +1,102 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# repair: qualifies whether the model still produces schema-valid structured
+# output when the request itself is tricky -- an ambiguous field it must
+# resolve, fields the user's phrasing makes sound optional but the schema
+# requires, or a value given in a form that needs coercion to the declared
+# type. This table demonstrates recovery TO valid output; the schema-FAILURE
+# path (structured_output_error evidence, malformed output) is exercised by
+# eval's own unit tests (see github.com/looprig/eval/exact structured_test.go),
+# not manufactured here.
+table: repair
+revision: v1
+dimension: capability
+requires: [structured_output]
+
+environment:
+  system: |
+    You are an assistant that returns a person profile as structured JSON
+    matching the provided schema. Every field is required even if the user
+    doesn't mention it explicitly -- resolve ambiguity, fill reasonable
+    values for anything unstated, and coerce values into the correct type.
+  output-schema:
+    name: person
+    description: A person profile with contact and tagging details.
+    schema:
+      type: object
+      properties:
+        name: {type: string}
+        age: {type: integer}
+        role: {type: string, enum: [admin, member, guest]}
+        address:
+          type: object
+          properties:
+            city: {type: string}
+            country: {type: string}
+          required: [city, country]
+          additionalProperties: false
+        tags:
+          type: array
+          items: {type: string}
+      required: [name, age, role, address, tags]
+      additionalProperties: false
+    strict: true
+
+evaluators:
+  - kind: schema-result
+
+scenarios:
+  - id: so-201-ambiguous-age
+    input:
+      - role: user
+        text: >-
+          Return a profile for Marta Alves, born in 1994, working as a
+          guest contributor out of Lisbon, Portugal, tagged "contractor".
+          Figure out her current age yourself.
+    expect:
+      structured-output: {schema: person/v1, strict: true}
+    labels: {category: repair}
+
+  - id: so-202-unstated-fields-still-required
+    input:
+      - role: user
+        text: >-
+          Just give me a quick profile for a new member named Jonas Weber,
+          age 30. I don't have his address or any tags handy.
+    expect:
+      structured-output: {schema: person/v1, strict: true}
+    labels: {category: repair}
+
+  - id: so-203-value-coercion
+    input:
+      - role: user
+        text: >-
+          Return a profile for Grace Lindqvist. She's twenty-six years old,
+          an admin, based out of Oslo, Norway, and her tags are: on call,
+          senior, and mentor -- written as one comma-separated phrase.
+    expect:
+      structured-output: {schema: person/v1, strict: true}
+    labels: {category: repair}
+
+script:
+  so-201-ambiguous-age:
+    reply: Here is Marta's profile, with her age computed from her birth year.
+    structured:
+      schema-name: person
+      schema-revision: person/v1
+
+  so-202-unstated-fields-still-required:
+    reply: >-
+      Here is Jonas's profile; I filled in a placeholder address and an
+      empty tag list since none were given.
+    structured:
+      schema-name: person
+      schema-revision: person/v1
+
+  so-203-value-coercion:
+    reply: >-
+      Here is Grace's profile, with her age converted to a number and her
+      tags split into a list.
+    structured:
+      schema-name: person
+      schema-revision: person/v1

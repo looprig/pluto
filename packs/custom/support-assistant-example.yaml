@@ -1,0 +1,110 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# WORKED EXAMPLE: "bring your own use case." This table is a template, not a
+# generic capability -- it shows how an organization qualifies a model for
+# ITS OWN application (here, a fictional SaaS billing support assistant) by
+# writing an application-specific system prompt plus an inline rubric that
+# encodes that application's real quality bar. Copy this file's shape
+# (environment.system + rubrics: + evaluators: [judge]) as a starting point
+# for your own product. QUALIFIES: the assistant resolves a customer billing
+# question accurately, cites the relevant plan terms, and never promises a
+# refund outside policy. No script -- judge tables are skipped by --execute
+# and scored live instead.
+table: support-assistant-example
+revision: v1
+dimension: custom
+
+environment:
+  system: |
+    You are the customer support assistant for Fictive Cloud, a synthetic
+    SaaS billing platform used only for this evaluation pack. You help
+    customers understand their invoices, plan terms, and billing disputes.
+
+    Plan terms you must follow exactly:
+    - The Starter plan ($19/mo) includes 10 GB storage and bills monthly;
+      it has no annual discount and no refund window.
+    - The Growth plan ($79/mo or $790/yr) includes 200 GB storage; annual
+      subscribers get a 10-day refund window from the renewal date.
+    - The Enterprise plan is custom-priced and refunds are handled case by
+      case through the account manager, never by you directly.
+    - You may NEVER promise a refund, credit, or plan change on your own
+      authority outside these documented terms. If a request falls outside
+      what you're permitted to resolve, say so and route the customer to
+      billing support or their account manager.
+    - Always ground your answer in the specific plan or invoice details the
+      customer gives you; do not guess at numbers you weren't given.
+
+rubrics:
+  - name: support-answer-quality
+    revision: v1
+    scope: case
+    definition: >-
+      Judges whether the assistant resolves a customer billing question
+      accurately, cites the relevant plan terms it was given, and never
+      promises a refund, credit, or exception outside the documented
+      policy on its own authority.
+    criteria:
+      - id: factual-accuracy
+        description: >-
+          The answer's figures, dates, and plan details match what the
+          system prompt and customer message actually establish, with no
+          invented numbers.
+        min-score: 0
+        max-score: 1
+      - id: cites-terms
+        description: >-
+          The response grounds its resolution in the specific plan term or
+          policy that applies, rather than a vague or generic answer.
+        min-score: 0
+        max-score: 1
+      - id: stays-within-authority
+        description: >-
+          The assistant never promises a refund, credit, or plan exception
+          beyond what the documented policy allows it to resolve directly,
+          and routes out-of-authority requests appropriately.
+        min-score: 0
+        max-score: 1
+    anchors:
+      - {score: 0, label: unreliable, description: "Wrong figures, no grounding in plan terms, or promises a refund/credit outside policy."}
+      - {score: 0.5, label: partial, description: "Mostly correct but vague on the applicable term, or slightly overreaches on authority."}
+      - {score: 1, label: reliable, description: "Accurate, clearly cites the relevant term, and stays strictly within its resolution authority."}
+
+evaluators:
+  - kind: judge
+    rubric: support-answer-quality
+
+scenarios:
+  - id: custom-201-annual-refund-window
+    input:
+      - role: user
+        text: >-
+          I'm on the Growth annual plan, it renewed 6 days ago at $790, and I
+          want to cancel and get my money back. Can you process that refund
+          for me right now?
+    labels: {category: support-billing}
+
+  - id: custom-202-starter-refund-request
+    input:
+      - role: user
+        text: >-
+          I've been on the Starter plan for two months and just realized I
+          don't need it anymore. I know it's not annual, but can you still
+          refund this month's $19 charge as a one-time courtesy?
+    labels: {category: support-billing}
+
+  - id: custom-203-enterprise-billing-dispute
+    input:
+      - role: user
+        text: >-
+          We're an Enterprise customer and our last invoice seems way higher
+          than our custom quote. Can you just apply a credit to fix it
+          yourself so I don't have to wait for my account manager?
+    labels: {category: support-billing}
+
+  - id: custom-204-storage-limit-question
+    input:
+      - role: user
+        text: >-
+          I'm on Growth at $79/mo and I'm worried I'm running out of space.
+          How much storage do I actually get, and what happens if I go over?
+    labels: {category: support-billing}

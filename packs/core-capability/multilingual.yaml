@@ -1,0 +1,51 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# Qualifies multilingual task quality: user turns arrive in five different
+# languages and the model must complete each task well in the same language.
+# Judge rubric applies uniformly; no script (skipped by --execute).
+table: multilingual
+revision: v1
+dimension: capability
+
+evaluators:
+  - kind: judge
+    rubric: instruction_adherence
+
+scenarios:
+  - id: cc-601-spanish
+    input:
+      - role: user
+        text: >-
+          Escribe un correo breve y cortés a un colega para pedir que reprograme
+          una reunión al jueves por la tarde. Máximo tres frases.
+    labels: {category: multilingual, language: es}
+
+  - id: cc-602-french
+    input:
+      - role: user
+        text: >-
+          Explique en deux phrases, dans un ton pédagogique, pourquoi le ciel est
+          bleu, sans utiliser de formules mathématiques.
+    labels: {category: multilingual, language: fr}
+
+  - id: cc-603-german
+    input:
+      - role: user
+        text: >-
+          Fasse die Vorteile des Fahrradfahrens in genau drei Stichpunkten
+          zusammen. Halte jeden Punkt kurz und sachlich.
+    labels: {category: multilingual, language: de}
+
+  - id: cc-604-japanese
+    input:
+      - role: user
+        text: >-
+          初めての読者向けに、俳句とは何かを二文でやさしく説明してください。専門用語は避けてください。
+    labels: {category: multilingual, language: ja}
+
+  - id: cc-605-arabic
+    input:
+      - role: user
+        text: >-
+          اكتب نصيحة قصيرة وودّية لشخص يبدأ تعلّم الطبخ لأول مرة، في جملة واحدة فقط.
+    labels: {category: multilingual, language: ar}

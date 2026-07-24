@@ -1,0 +1,88 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# tool-efficiency: qualifies whether the model reaches the goal with the
+# fewest necessary tool calls -- no redundant re-queries, no speculative
+# lookups for facts already established, no fetching information the user
+# didn't ask for. Judged by a custom session-scope rubric; no script is
+# needed (judge tables are skipped by `validate --execute`).
+table: tool-efficiency
+revision: v1
+dimension: capability
+requires: [tools]
+
+environment:
+  system: |
+    You are a helpful assistant with access to a search tool. Use it when a
+    request needs current or external information, and use the fewest calls
+    that get the job done -- do not repeat a query you've already run, and
+    do not look up facts the user did not ask about.
+  tools:
+    - name: search
+      description: Look up current information on the web.
+      schema:
+        type: object
+        properties:
+          query: {type: string}
+        required: [query]
+        additionalProperties: false
+
+rubrics:
+  - name: tool-efficiency
+    revision: v1
+    scope: session
+    definition: >-
+      Judges whether the assistant reached the goal with the fewest
+      necessary tool calls, without redundant or speculative lookups.
+    criteria:
+      - id: minimality
+        description: No redundant, repeated, or unnecessary tool calls were made.
+        min-score: 0
+        max-score: 1
+      - id: coverage
+        description: Every call made was actually needed to answer the request.
+        min-score: 0
+        max-score: 1
+    anchors:
+      - {score: 0, label: poor, description: Many redundant or speculative calls.}
+      - {score: 1, label: excellent, description: Only the calls strictly necessary to answer.}
+
+evaluators:
+  - kind: judge
+    rubric: tool-efficiency
+
+scenarios:
+  - id: tu-401-single-fact-lookup
+    input:
+      - role: user
+        text: What year did Portugal join the European Union?
+    labels: {category: tool-efficiency}
+
+  - id: tu-402-two-fact-comparison
+    input:
+      - role: user
+        text: Which has a larger population, Lisbon or Madrid?
+    labels: {category: tool-efficiency}
+
+  - id: tu-403-follow-up-reuses-context
+    input:
+      - role: user
+        text: What is the current population of Lisbon?
+      - role: assistant
+        text: Lisbon's current population is approximately 545,000.
+      - role: user
+        text: And what's its area in square kilometers?
+    labels: {category: tool-efficiency}
+
+  - id: tu-404-narrow-scoped-request
+    input:
+      - role: user
+        text: Just tell me today's date -- no need to look anything else up.
+    labels: {category: tool-efficiency}
+
+  - id: tu-405-multi-part-itinerary
+    input:
+      - role: user
+        text: >-
+          I'm flying into Lisbon next week. What's the current weather
+          there, and what's the exchange rate from USD to EUR?
+    labels: {category: tool-efficiency}

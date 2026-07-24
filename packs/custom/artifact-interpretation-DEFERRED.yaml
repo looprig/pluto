@@ -1,0 +1,38 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# DEFERRED: multimodal / artifact-interpretation metrics -- image OCR,
+# chart/diagram reading, PDF table extraction, adversarial text embedded in
+# images -- are out of scope for this pack and for this harness today. The
+# YAML scenario `input:` is text-only (role + text, no image/PDF payload
+# type), and the harness has no image/PDF transport to a target and no
+# multimodal judge to score visual grounding even if it did. Real coverage
+# of this spec metric would require: an input variant carrying binary/URL
+# image or PDF payloads, a target capable of accepting them, and a judge (or
+# programmatic check) that can assess grounding against the visual content
+# itself -- none of which exist here yet. This table is a trivial,
+# text-only, always-passing placeholder (required-text on a marker the
+# script itself emits) so the pack carries a clearly-labeled DEFERRED marker
+# table for `validate --execute` to point to.
+table: artifact-interpretation-deferred
+revision: v1
+dimension: custom
+
+evaluators:
+  - kind: required-text
+    substrings: ["ARTIFACT-INTERPRETATION-DEFERRED-PLACEHOLDER"]
+
+scenarios:
+  - id: custom-901-deferred-placeholder
+    input:
+      - role: user
+        text: >-
+          This is a text-only placeholder standing in for an
+          artifact-interpretation scenario (e.g. reading a chart, table, or
+          scanned document) that this harness cannot yet transport or judge.
+          Reply with the placeholder marker to confirm this table loads and
+          executes cleanly.
+    labels: {category: deferred-placeholder}
+
+script:
+  custom-901-deferred-placeholder:
+    reply: ARTIFACT-INTERPRETATION-DEFERRED-PLACEHOLDER

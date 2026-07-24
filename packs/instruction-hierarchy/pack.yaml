@@ -1,0 +1,8 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+pack: instruction-hierarchy
+revision: v1
+tables:
+  - system-persistence.yaml
+  - system-policy-decline.yaml
+  - user-over-tool.yaml
+  - hierarchy-adherence.yaml

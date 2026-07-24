@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# core-capability: MPQT's baseline capability pack. Plain-text conversation
+# only (no tools, no structured output). Programmatic tables pin exact answers
+# one-per-table; grouped programmatic and judge tables carry many scenarios.
+pack: core-capability
+revision: v1
+tables:
+  - if-exact-phrase.yaml
+  - if-forbidden-word.yaml
+  - if-priority-conflict.yaml
+  - ka-capital.yaml
+  - ka-arithmetic.yaml
+  - ka-unit-conversion.yaml
+  - ka-science.yaml
+  - ka-geography.yaml
+  - long-context-alpha.yaml
+  - long-context-beta.yaml
+  - list-format.yaml
+  - instruction-adherence.yaml
+  - answer-relevance.yaml
+  - groundedness.yaml
+  - multilingual.yaml
+  - clarification.yaml
+  - calibrated-uncertainty.yaml
+  - conversation-consistency.yaml

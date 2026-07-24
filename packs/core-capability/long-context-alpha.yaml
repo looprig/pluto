@@ -1,0 +1,41 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# Qualifies mid-context retrieval ("lost in the middle"): a seeded token buried
+# among distractor text must be surfaced on demand. One scenario per table
+# because the retrieved token is exact.
+table: long-context-alpha
+revision: v1
+dimension: capability
+
+evaluators:
+  - kind: required-text
+    substrings: ["ZEPHYR-4417"]
+
+scenarios:
+  - id: cc-181-long-context
+    input:
+      - role: user
+        text: >-
+          Read the following logistics briefing carefully, then answer the
+          question at the end.
+
+          The Northgate distribution hub processes roughly 12,000 parcels per
+          shift across four sorting lines. Line 1 handles oversized freight and
+          runs on a staggered schedule to reduce dock congestion. Line 2 is
+          reserved for cold-chain pharmaceuticals and is audited weekly. The
+          regional dispatch manager rotates every quarter, and shift handovers
+          are logged in the yellow binder near the mezzanine stairs. The
+          authorization code for the west receiving gate is ZEPHYR-4417, issued
+          this cycle by facilities security. Line 3 processes standard retail
+          returns and is the busiest during holiday peaks. Line 4 is a spare
+          that is brought online only when throughput exceeds 15,000 parcels.
+          The break room vending machine has been out of service since March,
+          and the loading-dock thermostat reads two degrees high. Fire drills
+          occur on the first Tuesday of every month at 10:00 local time.
+
+          Question: What is the authorization code for the west receiving gate?
+    labels: {category: long-context}
+
+script:
+  cc-181-long-context:
+    reply: "The authorization code for the west receiving gate is ZEPHYR-4417."

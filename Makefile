@@ -1,14 +1,21 @@
-.PHONY: test fmt fmt-check staticcheck lint vuln secure fuzz
+.PHONY: test fmt fmt-check staticcheck lint vuln secure fuzz packs
 
 GO ?= go
 
-# Module's own package dirs. go list stops at nested module boundaries
-# (examples/qualification and cmd/mpqt each have their own go.mod), so
-# neither nested module is ever touched by these targets.
+# Module's own package dirs. go list stops at the nested module boundary
+# (cmd/mpqt has its own go.mod), so it is never touched by these targets.
 GO_DIRS = $(shell go list -f '{{.Dir}}' ./...)
 
 test:
 	go test -race ./...
+
+# Smoke-run the whole shipped YAML pack corpus offline through the CLI:
+# strict load + lint + digest check on every pack, plus a scripted-fixture
+# execution of every programmatic table (judge tables are skipped, no network,
+# no cost). Complements the compiled TestShippedCorpus guard in pkg/packfile.
+packs:
+	cd cmd/mpqt && GOWORK=off $(GO) build -trimpath -o mpqt .
+	cmd/mpqt/mpqt validate --execute packs/*
 
 # Format the whole module in place.
 fmt:

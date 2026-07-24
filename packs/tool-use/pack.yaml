@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# tool-use: qualifies a model's competence at deciding WHEN and HOW to use
+# tools -- correct invocation, restraint, error recovery, and efficiency --
+# distinct from raw task-answer correctness.
+pack: tool-use
+revision: v1
+tables:
+  - selection.yaml
+  - discipline.yaml
+  - error-recovery.yaml
+  - tool-efficiency.yaml
+  - goal-adherence.yaml

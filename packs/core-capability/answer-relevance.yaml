@@ -1,0 +1,49 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# Qualifies answer relevance: does the response actually address what was asked,
+# without drifting or padding. Judge rubric applies uniformly across varied Q&A;
+# no script (skipped by --execute).
+table: answer-relevance
+revision: v1
+dimension: capability
+
+evaluators:
+  - kind: judge
+    rubric: answer_relevance
+
+scenarios:
+  - id: cc-401-photosynthesis
+    input:
+      - role: user
+        text: "In simple terms, what do plants need in order to carry out photosynthesis?"
+    labels: {category: answer-relevance}
+
+  - id: cc-402-timezone
+    input:
+      - role: user
+        text: "If it is 3 PM in London, roughly what time is it in New York, and why is there a difference?"
+    labels: {category: answer-relevance}
+
+  - id: cc-403-recommendation
+    input:
+      - role: user
+        text: "I liked The Martian for its problem-solving and humor. Recommend one similar novel and say why."
+    labels: {category: answer-relevance}
+
+  - id: cc-404-debug-question
+    input:
+      - role: user
+        text: "My Python list comprehension returns None for every element. What is the most likely cause?"
+    labels: {category: answer-relevance}
+
+  - id: cc-405-history
+    input:
+      - role: user
+        text: "What were the main causes of the fall of the Western Roman Empire?"
+    labels: {category: answer-relevance}
+
+  - id: cc-406-cooking
+    input:
+      - role: user
+        text: "Why does my bread come out dense instead of fluffy, and what is one thing I can change?"
+    labels: {category: answer-relevance}

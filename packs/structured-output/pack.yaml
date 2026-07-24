@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# structured-output: qualifies a model's ability to produce structured
+# output that conforms to a declared schema -- across shapes and under
+# tricky-but-answerable prompts -- rather than free-text answers.
+pack: structured-output
+revision: v1
+tables:
+  - conformance.yaml
+  - repair.yaml

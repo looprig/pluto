@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# operational-stability: qualifies bounded response latency across prompt
+# sizes, and tolerance for a bounded rate of tool-call errors. Programmatic
+# evaluators only; see DEFERRED.yaml for the operational metrics this pack
+# cannot yet enforce.
+pack: operational-stability
+revision: v1
+tables:
+  - latency.yaml
+  - long-input.yaml
+  - tool-errors.yaml
+  - DEFERRED.yaml

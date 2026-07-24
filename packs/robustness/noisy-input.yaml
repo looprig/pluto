@@ -1,0 +1,44 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# noisy-input: qualifies whether the model still answers the intended
+# question when the user's request is typo-ridden or noisily phrased but the
+# underlying intent is clear. Judged by the catalog answer_relevance rubric
+# -- no script needed (judge tables are skipped by `validate --execute`).
+table: noisy-input
+revision: v1
+dimension: robustness
+
+evaluators:
+  - kind: judge
+    rubric: answer_relevance
+
+scenarios:
+  - id: rob-001-typo-capital-question
+    input:
+      - role: user
+        text: wat is teh capitol of Australlia??
+    labels: {category: noisy-input}
+
+  - id: rob-002-typo-compound-interest
+    input:
+      - role: user
+        text: can u expalin how compund interest wroks in simple terms plz
+    labels: {category: noisy-input}
+
+  - id: rob-003-typo-french-revolution
+    input:
+      - role: user
+        text: wut r teh mian causes of teh french revolutoin
+    labels: {category: noisy-input}
+
+  - id: rob-004-typo-virus-vs-bacteria
+    input:
+      - role: user
+        text: hey so liek whats teh diffrence betwen a virus and a bakteria
+    labels: {category: noisy-input}
+
+  - id: rob-005-typo-temp-conversion
+    input:
+      - role: user
+        text: can somone tel me how 2 convert farenheit to celcius, like the formula n stuff
+    labels: {category: noisy-input}

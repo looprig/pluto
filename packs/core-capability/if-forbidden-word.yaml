@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# Qualifies negative constraint adherence: complete the task while avoiding a
+# banned word. One scenario per table because the forbidden text is exact.
+table: if-forbidden-word
+revision: v1
+dimension: capability
+
+evaluators:
+  - kind: forbidden-text
+    substrings: ["orange"]
+
+scenarios:
+  - id: cc-111-forbidden-word
+    input:
+      - role: user
+        text: "Describe a sunset without using the word 'orange'."
+    labels: {category: instruction-following}
+
+script:
+  cc-111-forbidden-word:
+    reply: >-
+      The horizon glowed with molten amber and rose-gold light, fading upward
+      into deep violet as the sun slipped beneath the sea.

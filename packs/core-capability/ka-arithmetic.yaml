@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# Qualifies exact arithmetic recall/computation. One scenario per table because
+# the required answer is a single exact number.
+table: ka-arithmetic
+revision: v1
+dimension: capability
+
+evaluators:
+  - kind: required-text
+    substrings: ["391"]
+
+scenarios:
+  - id: cc-141-arithmetic
+    input:
+      - role: user
+        text: "What is 17 * 23? Answer with the number only."
+    labels: {category: known-answer}
+
+script:
+  cc-141-arithmetic:
+    reply: "391"

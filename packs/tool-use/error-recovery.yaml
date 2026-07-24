@@ -1,0 +1,72 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# error-recovery: qualifies whether the model recovers gracefully from a
+# failed tool call -- retrying with a corrected query rather than giving up
+# or fabricating an answer. Each scenario's script records one errored
+# search call followed by one successful retry (an error rate of 0.5,
+# comfortably under this table's 0.5 threshold).
+table: error-recovery
+revision: v1
+dimension: capability
+requires: [tools]
+
+environment:
+  system: |
+    You are a helpful assistant with access to a search tool. If a search
+    call fails or times out, try again with an adjusted query before giving
+    up or answering from memory alone.
+  tools:
+    - name: search
+      description: Look up current information on the web.
+      schema:
+        type: object
+        properties:
+          query: {type: string}
+        required: [query]
+        additionalProperties: false
+
+evaluators:
+  - kind: tool-error-rate
+    max-error-rate: 0.5
+
+scenarios:
+  - id: tu-301-search-timeout-retry
+    input:
+      - role: user
+        text: >-
+          Look up the current exchange rate from euros to US dollars and
+          tell me what 250 euros is worth.
+    labels: {category: error-recovery}
+
+  - id: tu-302-search-malformed-query-retry
+    input:
+      - role: user
+        text: Find the release date of the movie "Arrival" (the 2016 film).
+    labels: {category: error-recovery}
+
+  - id: tu-303-search-rate-limited-retry
+    input:
+      - role: user
+        text: What is the current CEO of the company Acme Corp?
+    labels: {category: error-recovery}
+
+script:
+  tu-301-search-timeout-retry:
+    reply: >-
+      250 euros is currently worth approximately $271.50 US dollars, based on
+      the latest exchange rate.
+    tool-calls:
+      - {name: search, id: t1, is-error: true}
+      - {name: search, id: t2, is-error: false}
+
+  tu-302-search-malformed-query-retry:
+    reply: '"Arrival" (2016) was released on November 11, 2016.'
+    tool-calls:
+      - {name: search, id: t1, is-error: true}
+      - {name: search, id: t2, is-error: false}
+
+  tu-303-search-rate-limited-retry:
+    reply: The current CEO of Acme Corp is Jordan Reyes.
+    tool-calls:
+      - {name: search, id: t1, is-error: true}
+      - {name: search, id: t2, is-error: false}

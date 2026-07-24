@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# Qualifies known-answer recall (world capitals). One scenario per table because
+# the required answer is exact and unique to this question.
+table: ka-capital
+revision: v1
+dimension: capability
+
+evaluators:
+  - kind: required-text
+    substrings: ["Canberra"]
+
+scenarios:
+  - id: cc-131-capital
+    input:
+      - role: user
+        text: "What is the capital of Australia? Answer with the city name only."
+    labels: {category: known-answer}
+
+script:
+  cc-131-capital:
+    reply: "Canberra"

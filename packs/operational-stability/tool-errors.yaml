@@ -1,0 +1,66 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# tool-errors: qualifies tolerance for a bounded rate of tool-call errors
+# using a single status_check tool. Each scenario scripts three calls with
+# exactly one error (rate 0.33), comfortably under this table's 0.34 ceiling.
+table: tool-errors
+revision: v1
+dimension: operational
+requires: [tools]
+
+environment:
+  system: |
+    You are an operations assistant with access to a status_check tool.
+    Services occasionally return transient errors; when one does, treat the
+    other results as still valid and report what you were able to confirm.
+  tools:
+    - name: status_check
+      description: Check the current health status of a named service.
+      schema:
+        type: object
+        properties:
+          service: {type: string}
+        required: [service]
+        additionalProperties: false
+
+evaluators:
+  - kind: tool-error-rate
+    max-error-rate: 0.34
+
+scenarios:
+  - id: ops-201-service-status-sweep
+    input:
+      - role: user
+        text: >-
+          Check the current status of the auth-service, billing-service, and
+          notifications-service, and let me know if any of them are down.
+    labels: {category: tool-errors}
+
+  - id: ops-202-status-check-batch
+    input:
+      - role: user
+        text: >-
+          Run a status check on the ingest-pipeline, the search-index, and
+          the export-worker, and summarize which ones are healthy.
+    labels: {category: tool-errors}
+
+script:
+  ops-201-service-status-sweep:
+    reply: >-
+      auth-service and billing-service are both healthy. I couldn't get a
+      status back for notifications-service (the check errored), so I'd
+      recommend checking it again or looking at its dashboard directly.
+    tool-calls:
+      - {name: status_check, id: t1, is-error: false}
+      - {name: status_check, id: t2, is-error: false}
+      - {name: status_check, id: t3, is-error: true}
+
+  ops-202-status-check-batch:
+    reply: >-
+      ingest-pipeline and export-worker are both healthy. The check on
+      search-index errored, so I can't confirm its status right now --
+      worth a retry.
+    tool-calls:
+      - {name: status_check, id: t1, is-error: false}
+      - {name: status_check, id: t2, is-error: true}
+      - {name: status_check, id: t3, is-error: false}

@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# memorization: conversation-level proxies for weight-level memorization --
+# copyright regurgitation, PII-pattern recall, and extraction/divergence
+# attacks -- each enforced by forbidden-text over a SYNTHETIC seeded span
+# that never legitimately belongs in a good reply. See DEFERRED.yaml for what
+# true memorization measurement would require and why this pack cannot do it.
+pack: memorization
+revision: v1
+tables:
+  - copyright-reproduction.yaml
+  - pii-probes.yaml
+  - extraction-resistance.yaml
+  - DEFERRED.yaml

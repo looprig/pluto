@@ -1,0 +1,145 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# conformance: qualifies whether the model returns structured output that
+# validates against a single declared schema across a variety of prompt
+# shapes -- a flat request, a nested sub-object, an enum choice, a request
+# that stresses every field being required, unicode text values, and a
+# larger array field. All six scenarios target the same `person/v1` schema;
+# the variation is in what each prompt asks for, not in the schema itself.
+table: conformance
+revision: v1
+dimension: capability
+requires: [structured_output]
+
+environment:
+  system: |
+    You are an assistant that returns a person profile as structured JSON
+    matching the provided schema. Every field in the schema is required;
+    always populate all of them.
+  output-schema:
+    name: person
+    description: A person profile with contact and tagging details.
+    schema:
+      type: object
+      properties:
+        name: {type: string}
+        age: {type: integer}
+        role: {type: string, enum: [admin, member, guest]}
+        address:
+          type: object
+          properties:
+            city: {type: string}
+            country: {type: string}
+          required: [city, country]
+          additionalProperties: false
+        tags:
+          type: array
+          items: {type: string}
+      required: [name, age, role, address, tags]
+      additionalProperties: false
+    strict: true
+
+evaluators:
+  - kind: schema-result
+
+scenarios:
+  - id: so-101-flat-profile
+    input:
+      - role: user
+        text: >-
+          Return a person profile for Alice Chen, age 29, role member, based
+          in Dublin, Ireland, tagged as "new-hire".
+    expect:
+      structured-output: {schema: person/v1, strict: true}
+    labels: {category: conformance}
+
+  - id: so-102-nested-address
+    input:
+      - role: user
+        text: >-
+          Return a person profile for Diego Ramirez, age 41, role admin,
+          living in Bogotá, Colombia, tagged as "team-lead".
+    expect:
+      structured-output: {schema: person/v1, strict: true}
+    labels: {category: conformance}
+
+  - id: so-103-enum-role-selection
+    input:
+      - role: user
+        text: >-
+          Return a person profile for Priya Nair, age 35, based in Toronto,
+          Canada, tagged as "on-call" -- she should be classified with the
+          admin role, not member or guest.
+    expect:
+      structured-output: {schema: person/v1, strict: true}
+    labels: {category: conformance}
+
+  - id: so-104-all-required-fields
+    input:
+      - role: user
+        text: >-
+          Return a complete person profile for Sam Okafor, age 27, guest
+          role, based in Austin, USA, tagged as "new-hire" and "remote" --
+          every field in the schema is required, so don't omit any of them.
+    expect:
+      structured-output: {schema: person/v1, strict: true}
+    labels: {category: conformance}
+
+  - id: so-105-unicode-values
+    input:
+      - role: user
+        text: >-
+          Return a person profile for 田中 陽子 (Tanaka Yōko), age 52, role
+          member, based in München, Germany, tagged as "国際部".
+    expect:
+      structured-output: {schema: person/v1, strict: true}
+    labels: {category: conformance}
+
+  - id: so-106-large-tags-array
+    input:
+      - role: user
+        text: >-
+          Return a person profile for Cole Bennett, age 33, admin role,
+          based in Toronto, Canada, tagged with all of these skills: python,
+          go, rust, sql, kubernetes, terraform, aws, ci-cd, security,
+          leadership, mentoring, incident-response.
+    expect:
+      structured-output: {schema: person/v1, strict: true}
+    labels: {category: conformance}
+
+script:
+  so-101-flat-profile:
+    reply: Here is Alice's profile.
+    structured:
+      schema-name: person
+      schema-revision: person/v1
+
+  so-102-nested-address:
+    reply: Here is Diego's profile.
+    structured:
+      schema-name: person
+      schema-revision: person/v1
+
+  so-103-enum-role-selection:
+    reply: Here is Priya's profile.
+    structured:
+      schema-name: person
+      schema-revision: person/v1
+
+  so-104-all-required-fields:
+    reply: Here is Sam's complete profile.
+    structured:
+      schema-name: person
+      schema-revision: person/v1
+
+  so-105-unicode-values:
+    reply: Here is Tanaka Yōko's profile.
+    structured:
+      schema-name: person
+      schema-revision: person/v1
+
+  so-106-large-tags-array:
+    reply: Here is Cole's profile.
+    structured:
+      schema-name: person
+      schema-revision: person/v1

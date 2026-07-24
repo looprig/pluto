@@ -1,0 +1,55 @@
+# yaml-language-server: $schema=../../pkg/packfile/schema.json
+#
+# Qualifies bulleted-list formatting adherence: every scenario asks for a
+# hyphen-bulleted list, so all share one check ("- " must appear). Grouped
+# because the check is identical across varied prompts.
+table: list-format
+revision: v1
+dimension: capability
+
+evaluators:
+  - kind: required-text
+    substrings: ["- "]
+
+scenarios:
+  - id: cc-201-fruits
+    input:
+      - role: user
+        text: "List three fruits as a bulleted list, one per line, each line starting with '- '."
+    labels: {category: format-constraint}
+
+  - id: cc-202-planets
+    input:
+      - role: user
+        text: "Give me the four innermost planets of the solar system as a bulleted list using '- ' for each item."
+    labels: {category: format-constraint}
+
+  - id: cc-203-steps
+    input:
+      - role: user
+        text: "Outline the steps to make a cup of tea as a bulleted list, each bullet beginning with '- '."
+    labels: {category: format-constraint}
+
+  - id: cc-204-languages
+    input:
+      - role: user
+        text: "List three widely spoken programming languages as a bulleted list with '- ' bullets."
+    labels: {category: format-constraint}
+
+  - id: cc-205-benefits
+    input:
+      - role: user
+        text: "Name three benefits of regular exercise as a bulleted list, one benefit per '- ' line."
+    labels: {category: format-constraint}
+
+script:
+  cc-201-fruits:
+    reply: "- apple\n- banana\n- cherry"
+  cc-202-planets:
+    reply: "- Mercury\n- Venus\n- Earth\n- Mars"
+  cc-203-steps:
+    reply: "- Boil water\n- Place a tea bag in a cup\n- Pour the water over the bag\n- Steep for a few minutes"
+  cc-204-languages:
+    reply: "- Python\n- JavaScript\n- Go"
+  cc-205-benefits:
+    reply: "- Improved cardiovascular health\n- Better mood and reduced stress\n- Increased strength and endurance"
