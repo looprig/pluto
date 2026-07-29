@@ -1,0 +1,23 @@
+# mpqt target manifest — the model UNDER TEST (qual.Manifest).
+# Passed as:  mpqt run --manifest target.yaml --profile profile.yaml --packs packs/core-capability
+#
+# LM Studio serves an OpenAI-compatible API on http://localhost:1234/v1 and
+# needs no API key. Start LM Studio's local server and load gemma-4-31b-it
+# first (the `model` below must match the id LM Studio exposes for it).
+target-id: gemma-4-31b-it-lmstudio
+role: candidate                       # candidate | incumbent
+provider: lmstudio
+model: gemma-4-31b-it                 # must match LM Studio's loaded model id
+api-format: openai                    # LM Studio speaks openai (or anthropic)
+base-url: http://localhost:1234/v1    # LM Studio's default local server
+endpoint-class: local                 # remote | local | process
+revision: r1                          # bump on any change to this target config
+
+# effort: (leave unset — gemma is not a reasoning/effort model)
+
+# capabilities: declare ONLY what your LM Studio setup actually supports.
+#   Left empty, qual.Plan SKIPS every table that requires a capability
+#   (all of tool-use and structured-output, plus the tool-requiring tables in
+#   other packs) — visibly skipped, never failed. Add the ones your model
+#   supports to run those tables, e.g.:
+# capabilities: [tools, structured_output]

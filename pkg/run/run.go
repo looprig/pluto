@@ -16,6 +16,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/looprig/eval"
 	inferenceeval "github.com/looprig/eval/target/inference"
@@ -41,6 +42,39 @@ type Spec struct {
 	Target         eval.Target
 	TargetForTable func(qual.TablePlan) (eval.Target, error)
 	Config         eval.RunConfig // zero value = eval defaults
+
+	// Progress, if non-nil, is called once per table plan in pack/plan order,
+	// just before that table is executed or recorded as skipped. It is a UI
+	// hook for live per-table feedback during a long live run (a run of many
+	// tables against a real model emits nothing else until the final report);
+	// offline callers like mpqttest leave it nil. It must not mutate the plan.
+	Progress func(qual.TablePlan)
+
+	// OnResult, if non-nil, is called once per RUNNABLE table immediately after
+	// it executes, with that table's eval.Report — the companion to Progress
+	// for a live UI that shows each table's pass/fail outcome as it completes.
+	// It never fires for a skipped table (those have no report) and must not
+	// mutate the report. Under table concurrency it is called from a worker
+	// goroutine, possibly for several tables at once, so an implementation must
+	// be safe for concurrent use.
+	OnResult func(qual.TablePlan, eval.Report)
+
+	// TableConcurrency is how many tables execute in parallel. 0 or 1 runs them
+	// sequentially (the default, preserving strict pack/table order and
+	// stop-at-first-error). A value >1 runs up to that many tables at once
+	// through a worker pool — the throughput win for a corpus of many
+	// single-scenario tables, where eval's own per-sample Config.Concurrency
+	// cannot help. Per-provider request load is bounded independently by the
+	// caller's rate-limited client (mpqt's --max-concurrent-requests/--max-rpm).
+	TableConcurrency int
+}
+
+// tableConcurrency returns the effective worker count (at least 1).
+func (s Spec) tableConcurrency() int {
+	if s.TableConcurrency > 1 {
+		return s.TableConcurrency
+	}
+	return 1
 }
 
 // validate enforces the exactly-one-of Target/TargetForTable rule. It is
@@ -95,7 +129,15 @@ func Execute(ctx context.Context, s Spec) (Result, error) {
 	if err := s.validate(); err != nil {
 		return Result{}, err
 	}
+	if s.tableConcurrency() > 1 {
+		return s.executeParallel(ctx)
+	}
+	return s.executeSequential(ctx)
+}
 
+// executeSequential runs every table in strict pack/table order, one at a time,
+// returning the partial result accumulated so far alongside the first error.
+func (s Spec) executeSequential(ctx context.Context) (Result, error) {
 	var results []qual.TableResult
 	var reports []eval.Report
 	var skipped []qual.TablePlan
@@ -113,12 +155,12 @@ func Execute(ctx context.Context, s Spec) (Result, error) {
 			return partial(), fmt.Errorf("run: Plan(%s): %w", pack.Name, err)
 		}
 		for _, plan := range plans {
+			if s.Progress != nil {
+				s.Progress(plan)
+			}
 			if !plan.Runnable {
 				skipped = append(skipped, plan)
-				results = append(results, qual.TableResult{
-					Pack: plan.Pack, Table: plan.Table, Dimension: plan.Dimension,
-					Skipped: true, Missing: plan.Missing,
-				})
+				results = append(results, skippedResult(plan))
 				continue
 			}
 
@@ -131,15 +173,137 @@ func Execute(ctx context.Context, s Spec) (Result, error) {
 			if err != nil {
 				return partial(), fmt.Errorf("run: eval.Run(%s/%s): %w", plan.Pack, plan.Table, err)
 			}
+			if s.OnResult != nil {
+				s.OnResult(plan, report)
+			}
 			reports = append(reports, report)
-			results = append(results, qual.TableResult{
-				Pack: plan.Pack, Table: plan.Table, Dimension: plan.Dimension,
-				Report: report,
-			})
+			results = append(results, runnableResult(plan, report))
 		}
 	}
 
 	return partial(), nil
+}
+
+// executeParallel runs up to s.tableConcurrency() tables at once through a
+// worker pool. All packs are planned first (a planning error aborts before any
+// paid call); runnable tables are dispatched to workers, and the first table
+// error cancels the shared context so in-flight work stops rather than burning
+// more paid calls. Results are reassembled in the original pack/table order so
+// the scorecard is deterministic regardless of completion order.
+func (s Spec) executeParallel(ctx context.Context) (Result, error) {
+	var plans []qual.TablePlan
+	for _, pack := range s.Packs {
+		pp, err := qual.Plan(pack, s.Manifest)
+		if err != nil {
+			return Result{Scorecard: qual.Scorecard{Manifest: s.Manifest}}, fmt.Errorf("run: Plan(%s): %w", pack.Name, err)
+		}
+		plans = append(plans, pp...)
+	}
+
+	type outcome struct {
+		result    qual.TableResult
+		report    eval.Report
+		hasReport bool
+	}
+	outcomes := make([]outcome, len(plans))
+
+	cctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	var (
+		sem      = make(chan struct{}, s.tableConcurrency())
+		wg       sync.WaitGroup
+		errMu    sync.Mutex
+		firstErr error
+	)
+	recordErr := func(err error) {
+		errMu.Lock()
+		if firstErr == nil {
+			firstErr = err
+		}
+		errMu.Unlock()
+		cancel() // stop dispatching / running further tables
+	}
+
+	for i := range plans {
+		plan := plans[i]
+		if !plan.Runnable {
+			if s.Progress != nil {
+				s.Progress(plan)
+			}
+			outcomes[i] = outcome{result: skippedResult(plan)}
+			continue
+		}
+		if cctx.Err() != nil {
+			continue // a prior table failed; do not start more
+		}
+		select {
+		case sem <- struct{}{}:
+		case <-cctx.Done():
+			continue
+		}
+		wg.Add(1)
+		go func(i int, plan qual.TablePlan) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			if cctx.Err() != nil {
+				return
+			}
+			if s.Progress != nil {
+				s.Progress(plan)
+			}
+			target, err := s.targetFor(plan)
+			if err != nil {
+				recordErr(fmt.Errorf("run: TargetForTable(%s/%s): %w", plan.Pack, plan.Table, err))
+				return
+			}
+			report, err := eval.Run(cctx, s.Config, plan.Suite, target, plan.Evaluators...)
+			if err != nil {
+				recordErr(fmt.Errorf("run: eval.Run(%s/%s): %w", plan.Pack, plan.Table, err))
+				return
+			}
+			if s.OnResult != nil {
+				s.OnResult(plan, report)
+			}
+			outcomes[i] = outcome{result: runnableResult(plan, report), report: report, hasReport: true}
+		}(i, plan)
+	}
+	wg.Wait()
+
+	var results []qual.TableResult
+	var reports []eval.Report
+	var skipped []qual.TablePlan
+	for i, plan := range plans {
+		o := outcomes[i]
+		switch {
+		case !plan.Runnable:
+			skipped = append(skipped, plan)
+			results = append(results, o.result)
+		case o.hasReport:
+			reports = append(reports, o.report)
+			results = append(results, o.result)
+		}
+	}
+	return Result{
+		Scorecard: qual.Scorecard{Manifest: s.Manifest, Results: results},
+		Reports:   reports,
+		Skipped:   skipped,
+	}, firstErr
+}
+
+// skippedResult builds the TableResult recorded for a capability-skipped table.
+func skippedResult(plan qual.TablePlan) qual.TableResult {
+	return qual.TableResult{
+		Pack: plan.Pack, Table: plan.Table, Dimension: plan.Dimension,
+		Skipped: true, Missing: plan.Missing,
+	}
+}
+
+// runnableResult builds the TableResult recorded for an executed table.
+func runnableResult(plan qual.TablePlan, report eval.Report) qual.TableResult {
+	return qual.TableResult{
+		Pack: plan.Pack, Table: plan.Table, Dimension: plan.Dimension,
+		Report: report,
+	}
 }
 
 // BuildTarget constructs the live inference target for one table: it expands

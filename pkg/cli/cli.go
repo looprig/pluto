@@ -17,10 +17,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/looprig/eval"
 	"github.com/looprig/inference"
 	"github.com/looprig/inference/model"
 	"github.com/looprig/mpqt/pkg/packfile"
 	"github.com/looprig/mpqt/pkg/pricing"
+	"github.com/looprig/mpqt/pkg/profile"
+	"github.com/looprig/mpqt/pkg/qual"
 	"github.com/looprig/mpqt/pkg/ratelimit"
 )
 
@@ -81,6 +84,46 @@ func (a App) counter(m model.Model) (pricing.Counter, error) {
 		return nil, nil
 	}
 	return a.NewCounter(m)
+}
+
+// verboseFlag registers the shared --verbose/-v flag that reveals ui.detail
+// output (per-table pricing caveats, missing-key notes, the full skip list).
+// Default off: a normal run prints only the useful summary.
+func verboseFlag(fs *flag.FlagSet) *bool {
+	v := fs.Bool("verbose", false, "show all detail instead of a concise summary")
+	fs.BoolVar(v, "v", false, "shorthand for --verbose")
+	return v
+}
+
+// noteMissingKey emits a verbose-only note when a provider's conventional API
+// key env var is unset. It is detail, not a default line: a genuinely missing
+// key for a key-required provider surfaces as a clear auth error at the first
+// call, and a keyless provider (a local LM Studio endpoint) needs none.
+func noteMissingKey(u *ui, app App, provider model.ProviderName) {
+	if app.LookupEnv == nil || !u.verboseEnabled() {
+		return
+	}
+	name := providerEnvVar(provider)
+	if _, ok := app.LookupEnv(name); !ok {
+		u.detail("%s is not set in the environment", name)
+	}
+}
+
+// counterForPreflight resolves a pricing counter for m, degrading to the
+// byte-heuristic (a nil Counter, which pricing.Preflight records as
+// CounterQuality "heuristic") with a note when no exact token counter can be
+// built for the provider/format. A preflight cost estimate is best-effort and
+// must never abort a run: a provider without an exact context counter (e.g. a
+// local LM Studio endpoint) still runs, it just gets a lower-quality estimate.
+// A nil NewCounter (heuristic by configuration) is silent; only a genuine
+// construction error prints the note.
+func (a App) counterForPreflight(m model.Model, w io.Writer) pricing.Counter {
+	c, err := a.counter(m)
+	if err != nil {
+		fmt.Fprintf(w, "note: exact token counter unavailable for provider %q (%v); cost estimate falls back to a byte heuristic\n", m.Provider, err)
+		return nil
+	}
+	return c
 }
 
 // withDefaults fills every field of App that has a working zero-cost
@@ -276,22 +319,6 @@ func providerEnvVar(provider model.ProviderName) string {
 	return strings.ToUpper(strings.ReplaceAll(string(provider), "-", "_")) + "_API_KEY"
 }
 
-// checkKeyPresence prints an informational, value-free note when the
-// provider's conventional API key env var is not set, so a user gets an
-// early, specific hint before what might otherwise be an opaque
-// client-construction failure. It never blocks and never echoes a value:
-// App.LookupEnv is presence-only by contract, and App.NewClient may source
-// credentials a different way entirely.
-func checkKeyPresence(app App, w io.Writer, provider model.ProviderName) {
-	if app.LookupEnv == nil {
-		return
-	}
-	name := providerEnvVar(provider)
-	if _, ok := app.LookupEnv(name); !ok {
-		fmt.Fprintf(w, "note: %s is not set in the environment\n", name)
-	}
-}
-
 // --- preflight pricing flags, shared by gen and run ---
 
 // pricingFlags is the common preflight flag set both gen and run register.
@@ -387,14 +414,148 @@ func incompleteReason(plan pricing.Plan) string {
 	return "unknown"
 }
 
-// printPlan renders a preflight plan as a short human summary.
-func printPlan(w io.Writer, label string, plan pricing.Plan) {
-	fmt.Fprintf(w, "%s: preflight: target calls=%d judge calls=%d input tokens~[%d,%d] output tokens~[%d,%d] (counter=%s)\n",
-		label, plan.TargetCalls, plan.JudgeCalls,
+// renderPreflight prints the concise, styled preflight summary. The per-item
+// pricing caveats (plan.Unknowns) are verbose-only: by default it prints just
+// their count, so the summary stays a couple of lines instead of one per table.
+func renderPreflight(u *ui, plan pricing.Plan) {
+	u.step("preflight · %d target + %d judge call(s) · %s", plan.TargetCalls, plan.JudgeCalls, costSummary(plan))
+	u.detail("input tokens ~%d–%d, output ~%d–%d, via %s counter",
 		plan.InputTokens[0], plan.InputTokens[1], plan.OutputTokens[0], plan.OutputTokens[1], plan.CounterQuality)
-	fmt.Fprintf(w, "%s: preflight: expected cost %s, max cost %s\n", label, formatAmount(plan.Expected), formatAmount(plan.Max))
-	for _, u := range plan.Unknowns {
-		fmt.Fprintf(w, "%s: preflight note: %s\n", label, u)
+	if n := len(plan.Unknowns); n > 0 {
+		if u.verboseEnabled() {
+			for _, un := range plan.Unknowns {
+				u.detail("%s", un)
+			}
+		} else {
+			u.info("%d pricing caveat(s) hidden — pass --verbose for detail", n)
+		}
+	}
+}
+
+// costSummary renders a compact cost estimate for the preflight line.
+func costSummary(plan pricing.Plan) string {
+	if !plan.Expected.Known && !plan.Max.Known {
+		return "cost unknown"
+	}
+	return "est cost " + formatAmount(plan.Expected) + "–" + formatAmount(plan.Max)
+}
+
+// tableFailure names one failed scenario for the report's failures list.
+type tableFailure struct{ table, scenario string }
+
+// renderRunReport prints the final report once a run completes: a one-line
+// totals summary, per-dimension scores, a concise failures list (full detail
+// under --verbose), and the disposition badge with the report path.
+func renderRunReport(u *ui, card qual.Scorecard, result profile.Result, require profile.Disposition, reportPath string, dur time.Duration) {
+	var tables, scenarios, passed, failed, errs int
+	var failures []tableFailure
+	for _, tr := range card.Results {
+		if tr.Skipped {
+			continue
+		}
+		tables++
+		s := tr.Report.Summary
+		scenarios += s.Samples
+		passed += s.Assessments[eval.StatusPass]
+		failed += s.Assessments[eval.StatusFail]
+		errs += s.Assessments[eval.StatusError] + s.TargetErrors
+		for _, sm := range tr.Report.Samples {
+			if sampleFailed(sm) {
+				failures = append(failures, tableFailure{
+					table:    string(tr.Pack) + "/" + string(tr.Table),
+					scenario: sm.ScenarioID,
+				})
+			}
+		}
+	}
+
+	u.blank()
+	totals := fmt.Sprintf("%d tables · %d scenarios · %s · %s · %d errors",
+		tables, scenarios,
+		u.paint(ansiGreen, fmt.Sprintf("%d passed", passed)),
+		u.paint(ansiRed, fmt.Sprintf("%d failed", failed)), errs)
+	if failed > 0 || errs > 0 {
+		u.fail("%s", totals)
+	} else {
+		u.ok("%s", totals)
+	}
+	u.info("time %s   ·   cost — (pricing not wired for this provider)", elapsed(dur))
+
+	if dims, err := card.Dimensions(); err == nil && len(dims) > 0 {
+		u.blank()
+		u.line("", "", "%s", u.paint(ansiBold, "Dimensions"))
+		for _, d := range dims {
+			if d.Undecided {
+				u.info("%-22s   undecided  (coverage %.0f%%)", d.Dimension, d.Coverage*100)
+			} else {
+				u.info("%-22s %6.1f     (coverage %.0f%%)", d.Dimension, d.Score, d.Coverage*100)
+			}
+		}
+	}
+
+	renderFailures(u, failures)
+
+	u.blank()
+	label, color := dispositionStyle(result.Disposition)
+	summary := fmt.Sprintf("%s   required: %s   ·   report → %s", u.badge(color, label), require, reportPath)
+	if result.Disposition.Rank() >= require.Rank() {
+		u.ok("%s", summary)
+	} else {
+		u.fail("%s", summary)
+	}
+}
+
+// maxListedFailures bounds the failures list in the default report; the rest
+// are summarized as a count (every failure is always in the JSON report).
+const maxListedFailures = 15
+
+// renderFailures lists the failed scenarios, capped unless --verbose.
+func renderFailures(u *ui, failures []tableFailure) {
+	if len(failures) == 0 {
+		return
+	}
+	u.blank()
+	u.line("", "", "%s %s", u.paint(ansiBold, "Failures"),
+		u.paint(ansiDim, fmt.Sprintf("(%d — see the report for assertion detail)", len(failures))))
+	limit := len(failures)
+	if !u.verboseEnabled() && limit > maxListedFailures {
+		limit = maxListedFailures
+	}
+	for _, f := range failures[:limit] {
+		u.fail("%-38s %s", f.table, u.paint(ansiDim, f.scenario))
+	}
+	if limit < len(failures) {
+		u.info("…and %d more — pass --verbose to list them all", len(failures)-limit)
+	}
+}
+
+// sampleFailed reports whether a sample is a failure: a target error, or any
+// failing assessment.
+func sampleFailed(sm eval.SampleReport) bool {
+	if sm.TargetErr != nil {
+		return true
+	}
+	for _, a := range sm.Assessments {
+		if a.Status == eval.StatusFail {
+			return true
+		}
+	}
+	return false
+}
+
+// dispositionStyle maps a disposition onto its badge label and color.
+func dispositionStyle(d profile.Disposition) (label, color string) {
+	switch d {
+	case profile.Qualified:
+		return "QUALIFIED", ansiGreen
+	case profile.Restricted:
+		return "RESTRICTED", ansiYellow
+	case profile.Unverified:
+		return "UNVERIFIED", ansiYellow
+	case profile.Rejected:
+		return "REJECTED", ansiRed
+	default:
+		return string(d), ""
 	}
 }
 

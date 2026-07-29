@@ -1,0 +1,14 @@
+# Minimal org qualification profile (profile.Profile). Evaluated against the
+# scorecard after a run to derive a disposition (qualified/restricted/
+# unverified/rejected). Pass with --profile profile.yaml.
+#
+# A requirement names a DIMENSION; set the dimension to one the packs you run
+# actually produce (core-capability -> capability; safety-conduct /
+# prompt-injection / dangerous-capabilities / deception-honesty -> safety;
+# psychosocial-safety -> wellbeing; agentic-security -> security; etc.).
+# A requirement on a dimension with no verdicts yields "unverified", not a pass.
+name: local-smoke
+revision: r1
+requirements:
+  - dimension: capability
+    min-score: 60          # 0-100; lenient starter threshold

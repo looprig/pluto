@@ -34,10 +34,13 @@ func cmdGen(app App, args []string) int {
 	dryRun := fs.Bool("dry-run", false, "preflight only: estimate cost and stop before the paid call")
 	pf := registerPricingFlags(fs)
 	rf := registerRateLimitFlags(fs)
+	verbose := verboseFlag(fs)
 
 	if code, ok := parseFlags(app, fs, args); !ok {
 		return code
 	}
+
+	u := newUI(app.Stdout, app.LookupEnv, *verbose)
 
 	// Set before resolving the client so the generator call is rate-limited.
 	app.RateLimit = rf.config()
@@ -70,7 +73,8 @@ func cmdGen(app App, args []string) int {
 	}
 	genModel := cfg.toModel()
 
-	checkKeyPresence(app, app.Stdout, genModel.Provider)
+	u.title("gen", fmt.Sprintf("%s/%s · %s/%s · n=%d", doc.Pack.Pack, *table, genModel.Provider, genModel.Name, *n))
+	noteMissingKey(u, app, genModel.Provider)
 	client, err := app.client(genModel)
 	if err != nil {
 		fmt.Fprintln(app.Stderr, "mpqt gen:", err)
@@ -85,7 +89,7 @@ func cmdGen(app App, args []string) int {
 			fmt.Fprintln(app.Stderr, "mpqt gen: preflight:", err)
 			return ExitCommandFailure
 		}
-		printPlan(app.Stdout, "gen", plan)
+		renderPreflight(u, plan)
 		if ok, code := gatePreflight(pf, plan, app.Stdout); !ok {
 			return code
 		}
@@ -105,10 +109,10 @@ func cmdGen(app App, args []string) int {
 		return ExitCommandFailure
 	}
 
-	fmt.Fprintf(app.Stdout, "gen: table %s/%s: %d candidate(s) -> %d accepted, %d rejected\n",
-		doc.Pack.Pack, *table, len(result.Accepted)+len(result.Rejected), len(result.Accepted), len(result.Rejected))
+	u.ok("%d candidate(s) → %d accepted, %d rejected",
+		len(result.Accepted)+len(result.Rejected), len(result.Accepted), len(result.Rejected))
 	for _, r := range result.Rejected {
-		fmt.Fprintf(app.Stdout, "  rejected %s: %s\n", r.ID, r.Reason)
+		u.detail("rejected %s: %s", r.ID, r.Reason)
 	}
 
 	if *rawOut {
@@ -147,7 +151,7 @@ func cmdGen(app App, args []string) int {
 		fmt.Fprintln(app.Stderr, "mpqt gen: write:", err)
 		return ExitCommandFailure
 	}
-	fmt.Fprintf(app.Stdout, "gen: appended %d scenario(s) to %s\n", len(result.Accepted), outPath)
+	u.ok("appended %d scenario(s) → %s", len(result.Accepted), outPath)
 	return ExitOK
 }
 
@@ -198,10 +202,7 @@ func buildGenPreflight(ctx context.Context, app App, pf *pricingFlags, packName 
 	}
 	rates := ratesFor(snap, string(m.Provider), m.Name)
 
-	counter, err := app.counter(m)
-	if err != nil {
-		return pricing.Plan{}, fmt.Errorf("counter: %w", err)
-	}
+	counter := app.counterForPreflight(m, app.Stdout)
 
 	return pricing.Preflight(ctx, []qual.TablePlan{plan}, eval.RunConfig{}, rates, counter,
 		map[eval.Name]inference.Request{tableName: req})

@@ -1,0 +1,12 @@
+# LLM config used by `mpqt gen` AND by judge-evaluator tables at `mpqt run`
+# time (pass with --config gen.yaml). Points at the same local LM Studio
+# gemma so judge-backed tables run without any cloud key.
+#
+# Note: a small local model is a weak judge. For higher-stakes judging, name a
+# stronger model/provider here instead — its API key then comes from that
+# provider's own environment variable (e.g. ANTHROPIC_API_KEY), never this file.
+llm:
+  provider: lmstudio
+  model: gemma-4-31b-it
+  api-format: openai
+  base-url: http://localhost:1234/v1

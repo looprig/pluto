@@ -32,14 +32,17 @@ func cmdRun(app App, args []string) int {
 	require := fs.String("require", string(profile.Qualified), "minimum disposition required for exit 0 (qualified|restricted|unverified|rejected)")
 	configPath := fs.String("config", "", "judge LLM config YAML (required only if a pack uses a judge evaluator)")
 	trials := fs.Int("trials", 0, "trials per scenario (0 = eval default of 1)")
-	concurrency := fs.Int("concurrency", 0, "maximum concurrent samples (0 = sequential)")
+	concurrency := fs.Int("concurrency", 0, "run up to N tables in parallel (0/1 = sequential); provider load stays bounded by --max-concurrent-requests")
 	out := fs.String("out", "mpqt-report.json", "reportjson output path")
 	pf := registerPricingFlags(fs)
 	rf := registerRateLimitFlags(fs)
+	verbose := verboseFlag(fs)
 
 	if code, ok := parseFlags(app, fs, args); !ok {
 		return code
 	}
+
+	u := newUI(app.Stdout, app.LookupEnv, *verbose)
 
 	// Set before resolving any client so both the target and judge clients
 	// route through the same rate limiter.
@@ -67,6 +70,9 @@ func cmdRun(app App, args []string) int {
 		return ExitCommandFailure
 	}
 
+	u.title("run", fmt.Sprintf("%s · %s/%s · %d pack(s)",
+		manifest.TargetID, manifest.Provider, manifest.Model, len(packDirs)))
+
 	var judgeClient inference.Client
 	var judgeModel model.Model
 	if *configPath != "" {
@@ -76,7 +82,7 @@ func cmdRun(app App, args []string) int {
 			return ExitCommandFailure
 		}
 		judgeModel = cfg.toModel()
-		checkKeyPresence(app, app.Stdout, judgeModel.Provider)
+		noteMissingKey(u, app, judgeModel.Provider)
 		judgeClient, err = app.client(judgeModel)
 		if err != nil {
 			fmt.Fprintln(app.Stderr, "mpqt run:", err)
@@ -109,7 +115,7 @@ func cmdRun(app App, args []string) int {
 	}
 
 	targetModel := run.ManifestModel(manifest)
-	checkKeyPresence(app, app.Stdout, targetModel.Provider)
+	noteMissingKey(u, app, targetModel.Provider)
 	targetClient, err := app.client(targetModel)
 	if err != nil {
 		fmt.Fprintln(app.Stderr, "mpqt run:", err)
@@ -138,7 +144,7 @@ func cmdRun(app App, args []string) int {
 	}
 
 	ctx := context.Background()
-	cfg := eval.RunConfig{Trials: *trials, Concurrency: *concurrency}
+	cfg := eval.RunConfig{Trials: *trials}
 
 	if !pf.skipCostEstimate {
 		snap, err := loadSnapshot(ctx, app, pf.pricingSnapshot)
@@ -147,41 +153,64 @@ func cmdRun(app App, args []string) int {
 			return ExitCommandFailure
 		}
 		rates := ratesFor(snap, string(targetModel.Provider), targetModel.Name)
-		counter, err := app.counter(targetModel)
-		if err != nil {
-			fmt.Fprintln(app.Stderr, "mpqt run: preflight:", err)
-			return ExitCommandFailure
-		}
+		counter := app.counterForPreflight(targetModel, u.detailW())
 		plan, err := pricing.Preflight(ctx, allPlans, cfg, rates, counter, templates)
 		if err != nil {
 			fmt.Fprintln(app.Stderr, "mpqt run: preflight:", err)
 			return ExitCommandFailure
 		}
-		printPlan(app.Stdout, "run", plan)
+		renderPreflight(u, plan)
 		if ok, code := gatePreflight(pf, plan, app.Stdout); !ok {
 			return code
 		}
 	}
 
+	runnable := 0
+	for _, p := range allPlans {
+		if p.Runnable {
+			runnable++
+		}
+	}
+	// Live pnpm-style viewport: a spinning running row over the last few
+	// completed rows plus a progress footer, redrawn in place on a terminal
+	// (plain append-only lines off one). Progress starts a table's row;
+	// OnResult scrolls it into place with its pass/fail tally.
+	vp := newViewport(app.Stdout, app.LookupEnv, runnable)
+	runStart := app.Now()
+
 	spec := run.Spec{
-		Manifest: manifest,
-		Packs:    packs,
-		Config:   cfg,
+		Manifest:         manifest,
+		Packs:            packs,
+		Config:           cfg,
+		TableConcurrency: *concurrency,
 		TargetForTable: func(plan qual.TablePlan) (eval.Target, error) {
 			return run.BuildTarget(targetClient, manifest, envs[plan.Table], plan.Suite.Revision)
+		},
+		Progress: func(plan qual.TablePlan) {
+			if plan.Runnable {
+				vp.start(string(plan.Pack)+"/"+string(plan.Table), len(plan.Suite.Scenarios))
+			}
+		},
+		OnResult: func(plan qual.TablePlan, rep eval.Report) {
+			vp.finish(string(plan.Pack)+"/"+string(plan.Table),
+				rep.Summary.Assessments[eval.StatusPass], rep.Summary.Assessments[eval.StatusFail])
 		},
 	}
 
 	res, err := run.Execute(ctx, spec)
-	for _, sk := range res.Skipped {
-		fmt.Fprintf(app.Stdout, "run: skipped %s/%s: missing %v\n", sk.Pack, sk.Table, sk.Missing)
+	vp.close()
+	if n := len(res.Skipped); n > 0 {
+		u.info("%d table(s) skipped (missing required capabilities)", n)
+		for _, sk := range res.Skipped {
+			u.detail("skipped %s/%s — missing %v", sk.Pack, sk.Table, sk.Missing)
+		}
 	}
 	if err != nil {
 		fmt.Fprintln(app.Stderr, "mpqt run: execute:", err)
 		if len(res.Scorecard.Results) > 0 {
 			if encoded, encErr := reportjson.Encode(res.Scorecard, nil); encErr == nil {
 				if writeErr := os.WriteFile(*out, encoded, 0o600); writeErr == nil {
-					fmt.Fprintf(app.Stdout, "run: wrote partial report to %s\n", *out)
+					u.warn("wrote partial report → %s", *out)
 				}
 			}
 		}
@@ -204,7 +233,7 @@ func cmdRun(app App, args []string) int {
 		return ExitCommandFailure
 	}
 
-	fmt.Fprintf(app.Stdout, "run: disposition=%s (require=%s) report=%s\n", result.Disposition, requireDisp, *out)
+	renderRunReport(u, res.Scorecard, result, requireDisp, *out, app.Now().Sub(runStart))
 
 	if result.Disposition.Rank() < requireDisp.Rank() {
 		return ExitGateFailed

@@ -3,7 +3,9 @@ package run_test
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/looprig/core/content"
 	"github.com/looprig/eval"
@@ -16,6 +18,46 @@ import (
 	fixtarget "github.com/looprig/mpqt/pkg/qual/target"
 	"github.com/looprig/mpqt/pkg/run"
 )
+
+// countingTarget wraps a target, recording the maximum number of concurrent
+// Observe calls so a test can assert the table worker pool honors its bound.
+type countingTarget struct {
+	inner    eval.Target
+	inFlight atomic.Int32
+	maxSeen  atomic.Int32
+	hold     time.Duration
+}
+
+func (c *countingTarget) Name() string { return c.inner.Name() }
+
+func (c *countingTarget) Observe(ctx context.Context, sc eval.Scenario) (eval.Observation, error) {
+	n := c.inFlight.Add(1)
+	for {
+		m := c.maxSeen.Load()
+		if n <= m || c.maxSeen.CompareAndSwap(m, n) {
+			break
+		}
+	}
+	if c.hold > 0 {
+		time.Sleep(c.hold)
+	}
+	c.inFlight.Add(-1)
+	return c.inner.Observe(ctx, sc)
+}
+
+// scriptedTextTarget scripts every scenario in pack with a plain text reply
+// (no structured output), wrapped in a countingTarget — suitable for the
+// text-evaluator capability pack, whose scenarios carry no structured-output
+// expectation for scriptedFromPack to read.
+func scriptedTextTarget(name string, pack qual.Pack, hold time.Duration) *countingTarget {
+	scripts := map[string]fixtarget.Script{}
+	for _, tbl := range pack.Tables {
+		for _, sc := range tbl.Scenarios {
+			scripts[sc.ID] = fixtarget.Script{Reply: "ok"}
+		}
+	}
+	return &countingTarget{inner: fixtarget.NewScripted(name, scripts), hold: hold}
+}
 
 // conformingManifest declares structured_output, the only capability the
 // structured-output pack's single table requires.
@@ -55,6 +97,79 @@ func scriptedFromPack(name string, pack qual.Pack) *fixtarget.Scripted {
 	return fixtarget.NewScripted(name, scripts)
 }
 
+// noCapManifest declares no capabilities, so the core-capability pack's tables
+// (which require none) are all runnable.
+func noCapManifest() qual.Manifest {
+	m := conformingManifest()
+	m.Capabilities = nil
+	return m
+}
+
+// TestExecuteParallelRunsAllTablesBounded proves table concurrency runs every
+// runnable table, caps in-flight tables at TableConcurrency, and reassembles
+// results in the same pack/table order as a sequential run (determinism).
+func TestExecuteParallelRunsAllTablesBounded(t *testing.T) {
+	t.Parallel()
+	pack := capability.V1() // many single-scenario tables, none needing a capability
+	const workers = 4
+
+	target := scriptedTextTarget("parallel", pack, time.Millisecond)
+	res, err := run.Execute(context.Background(), run.Spec{
+		Manifest:         noCapManifest(),
+		Packs:            []qual.Pack{pack},
+		Target:           target,
+		TableConcurrency: workers,
+	})
+	if err != nil {
+		t.Fatalf("Execute (parallel): %v", err)
+	}
+	if len(res.Reports) != len(pack.Tables) {
+		t.Fatalf("reports = %d, want %d (every table runs)", len(res.Reports), len(pack.Tables))
+	}
+	if max := target.maxSeen.Load(); max > workers {
+		t.Errorf("max concurrent Observe = %d, want <= %d", max, workers)
+	}
+
+	// Same table order as a sequential run.
+	seqTarget := scriptedTextTarget("seq", pack, 0)
+	seq, err := run.Execute(context.Background(), run.Spec{
+		Manifest: noCapManifest(), Packs: []qual.Pack{pack}, Target: seqTarget,
+	})
+	if err != nil {
+		t.Fatalf("Execute (sequential): %v", err)
+	}
+	if len(seq.Scorecard.Results) != len(res.Scorecard.Results) {
+		t.Fatalf("result counts differ: parallel %d, sequential %d", len(res.Scorecard.Results), len(seq.Scorecard.Results))
+	}
+	for i := range seq.Scorecard.Results {
+		if res.Scorecard.Results[i].Table != seq.Scorecard.Results[i].Table {
+			t.Errorf("result[%d] table = %q (parallel) vs %q (sequential): order not preserved",
+				i, res.Scorecard.Results[i].Table, seq.Scorecard.Results[i].Table)
+		}
+	}
+}
+
+// TestExecuteParallelOnResultFiresPerTable proves OnResult is invoked once per
+// runnable table on the parallel path (from worker goroutines).
+func TestExecuteParallelOnResultFiresPerTable(t *testing.T) {
+	t.Parallel()
+	pack := capability.V1()
+	var count atomic.Int32
+	_, err := run.Execute(context.Background(), run.Spec{
+		Manifest:         noCapManifest(),
+		Packs:            []qual.Pack{pack},
+		Target:           scriptedTextTarget("onresult", pack, 0),
+		TableConcurrency: 3,
+		OnResult:         func(qual.TablePlan, eval.Report) { count.Add(1) },
+	})
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if int(count.Load()) != len(pack.Tables) {
+		t.Errorf("OnResult fired %d times, want %d", count.Load(), len(pack.Tables))
+	}
+}
+
 func TestExecuteOfflinePack(t *testing.T) {
 	t.Parallel()
 	pack := structuredoutput.V1()
@@ -87,6 +202,52 @@ func TestExecuteOfflinePack(t *testing.T) {
 		if d.Undecided {
 			t.Errorf("dimension %s: Undecided = true, want a decided score from a conforming target", d.Dimension)
 		}
+	}
+}
+
+// TestExecuteInvokesProgressPerPlan proves the Progress hook fires once per
+// table plan, in order, on both the runnable and skipped paths — the live
+// per-table feedback the CLI relies on so a long run against a real model is
+// not silent between preflight and the final report.
+func TestExecuteInvokesProgressPerPlan(t *testing.T) {
+	t.Parallel()
+	pack := structuredoutput.V1() // one table, requires structured_output
+
+	// Runnable path: conforming manifest, table executes.
+	var runnable []qual.TablePlan
+	if _, err := run.Execute(context.Background(), run.Spec{
+		Manifest: conformingManifest(),
+		Packs:    []qual.Pack{pack},
+		Target:   scriptedFromPack("progress-run", pack),
+		Progress: func(p qual.TablePlan) { runnable = append(runnable, p) },
+	}); err != nil {
+		t.Fatalf("Execute (runnable): %v", err)
+	}
+	if len(runnable) != len(pack.Tables) {
+		t.Fatalf("Progress calls = %d, want %d (one per table)", len(runnable), len(pack.Tables))
+	}
+	if !runnable[0].Runnable {
+		t.Error("Progress plan.Runnable = false on a conforming manifest, want true")
+	}
+
+	// Skipped path: manifest without the capability, table is skipped but
+	// Progress still fires for it.
+	manifest := conformingManifest()
+	manifest.Capabilities = nil
+	var skipped []qual.TablePlan
+	if _, err := run.Execute(context.Background(), run.Spec{
+		Manifest: manifest,
+		Packs:    []qual.Pack{pack},
+		Target:   fixtarget.NewScripted("progress-skip", nil),
+		Progress: func(p qual.TablePlan) { skipped = append(skipped, p) },
+	}); err != nil {
+		t.Fatalf("Execute (skipped): %v", err)
+	}
+	if len(skipped) != len(pack.Tables) {
+		t.Fatalf("Progress calls on skip path = %d, want %d", len(skipped), len(pack.Tables))
+	}
+	if skipped[0].Runnable {
+		t.Error("Progress plan.Runnable = true for a table missing its capability, want false")
 	}
 }
 

@@ -34,13 +34,12 @@ func cmdValidate(app App, args []string) int {
 	apiFormat := fs.String("api-format", "", "check dialect projectability for this API format (v1: only \"\" is implemented; other values are accepted as a no-op with a note)")
 	execute := fs.Bool("execute", false, "additionally smoke-run every script-backed table offline through pkg/run.Execute")
 	writeDigests := fs.Bool("write-digests", false, "(re)write each pack's pack.digest lockfile from its current contents and revision, instead of verifying it")
+	verbose := verboseFlag(fs)
 	if code, ok := parseFlags(app, fs, args); !ok {
 		return code
 	}
 
-	if *apiFormat != "" {
-		fmt.Fprintf(app.Stdout, "validate: --api-format %q: dialect projectability not yet implemented (only the default \"\" check runs)\n", *apiFormat)
-	}
+	u := newUI(app.Stdout, app.LookupEnv, *verbose)
 
 	dirs, err := packDirsFromArgs(fs.Args())
 	if err != nil {
@@ -52,9 +51,15 @@ func cmdValidate(app App, args []string) int {
 		return ExitCommandFailure
 	}
 
+	u.title("validate", fmt.Sprintf("%d pack(s)", len(dirs)))
+
+	if *apiFormat != "" {
+		u.info("--api-format %q: dialect projectability not yet implemented (only the default \"\" check runs)", *apiFormat)
+	}
+
 	failed := false
 	for _, dir := range dirs {
-		if !validateOne(app, dir, *execute, *writeDigests) {
+		if !validateOne(u, app, dir, *execute, *writeDigests) {
 			failed = true
 		}
 	}
@@ -67,40 +72,44 @@ func cmdValidate(app App, args []string) int {
 
 // validateOne validates a single pack directory and reports its own failure,
 // never aborting the caller's loop over the remaining directories.
-func validateOne(app App, dir string, execute, writeDigests bool) bool {
-	fmt.Fprintf(app.Stdout, "validate: %s\n", dir)
+func validateOne(u *ui, app App, dir string, execute, writeDigests bool) bool {
+	u.step("%s", dir)
 	ok := true
 
 	doc, err := packfile.LoadDir(dir)
 	if err != nil {
-		fmt.Fprintf(app.Stdout, "  error: %v\n", err)
+		u.fail("%v", err)
 		return false
 	}
 
 	for _, finding := range doc.Lint() {
-		fmt.Fprintf(app.Stdout, "  warning: %s\n", finding)
+		u.warn("%s", finding)
 	}
 
 	for _, tf := range doc.Tables {
 		if _, err := tf.Environment.Template(); err != nil {
-			fmt.Fprintf(app.Stdout, "  error: table %s: environment: %v\n", tf.Table, err)
+			u.fail("table %s: environment: %v", tf.Table, err)
 			ok = false
 		}
 	}
 
 	if writeDigests {
-		if !writeDigest(app, dir, doc) {
+		if !writeDigest(u, dir, doc) {
 			ok = false
 		}
-	} else if !checkDigest(app, dir, doc) {
+	} else if !checkDigest(u, dir, doc) {
 		ok = false
 	}
 
 	if execute {
-		if err := executePack(context.Background(), app, dir, doc); err != nil {
-			fmt.Fprintf(app.Stdout, "  error: --execute: %v\n", err)
+		if err := executePack(context.Background(), u, app, dir, doc); err != nil {
+			u.fail("--execute: %v", err)
 			ok = false
 		}
+	}
+
+	if ok {
+		u.ok("%s clean", dir)
 	}
 
 	return ok
@@ -110,7 +119,7 @@ func validateOne(app App, dir string, execute, writeDigests bool) bool {
 // digest, when a lockfile is present. A freshly scaffolded pack (e.g. one
 // `mpqt init` just wrote) has no lockfile yet -- that is reported as an
 // informational note, never a failure, since init never writes one.
-func checkDigest(app App, dir string, doc *packfile.Document) bool {
+func checkDigest(u *ui, dir string, doc *packfile.Document) bool {
 	// #nosec G304 -- dir is an operator-supplied (or self-discovered under
 	// ".") pack directory validate already loaded via packfile.LoadDir;
 	// reading its pack.digest lockfile crosses no new privilege boundary.
@@ -118,15 +127,15 @@ func checkDigest(app App, dir string, doc *packfile.Document) bool {
 	switch {
 	case err == nil:
 		if verr := packfile.VerifyDigest(doc, lock); verr != nil {
-			fmt.Fprintf(app.Stdout, "  error: %v\n", verr)
+			u.fail("%v", verr)
 			return false
 		}
 		return true
 	case os.IsNotExist(err):
-		fmt.Fprintln(app.Stdout, "  note: no pack.digest lockfile; skipping digest check")
+		u.info("no pack.digest lockfile; skipping digest check")
 		return true
 	default:
-		fmt.Fprintf(app.Stdout, "  error: read pack.digest: %v\n", err)
+		u.fail("read pack.digest: %v", err)
 		return false
 	}
 }
@@ -137,16 +146,16 @@ func checkDigest(app App, dir string, doc *packfile.Document) bool {
 // validate --write-digests packs/...` regenerates every lockfile so the
 // committed digests track the corpus. Writing is reported so a CI run that
 // accidentally passes the flag is visible in its log.
-func writeDigest(app App, dir string, doc *packfile.Document) bool {
+func writeDigest(u *ui, dir string, doc *packfile.Document) bool {
 	lockPath := filepath.Join(dir, digestLockfileName)
 	// #nosec G306 -- a pack.digest lockfile is non-secret provenance meant to
 	// be committed and world-readable; 0o644 matches the repo's other tracked
 	// files.
 	if err := os.WriteFile(lockPath, packfile.DigestLockfile(doc), 0o644); err != nil {
-		fmt.Fprintf(app.Stdout, "  error: write pack.digest: %v\n", err)
+		u.fail("write pack.digest: %v", err)
 		return false
 	}
-	fmt.Fprintf(app.Stdout, "  wrote %s\n", lockPath)
+	u.ok("wrote %s", lockPath)
 	return true
 }
 
@@ -194,10 +203,10 @@ func discoverPackDirs(root string) ([]string, error) {
 // capability gating never gets in the way of a pure smoke test). It reports
 // whatever Execute returned even when Execute itself errors (ground rule:
 // Execute may return partial, still-usable results alongside an error).
-func executePack(ctx context.Context, app App, dir string, doc *packfile.Document) error {
+func executePack(ctx context.Context, u *ui, app App, dir string, doc *packfile.Document) error {
 	offline, judged := splitJudgeTables(doc)
 	if len(offline.Tables) == 0 {
-		fmt.Fprintf(app.Stdout, "  --execute: 0 table(s) executed, %d skipped (judge)\n", judged)
+		u.info("--execute: 0 table(s) executed, %d skipped (judge)", judged)
 		return nil
 	}
 
@@ -212,8 +221,23 @@ func executePack(ctx context.Context, app App, dir string, doc *packfile.Documen
 	manifest := executeManifest(unionCapabilities(pack))
 	target := fixtarget.NewScripted(dir, scripts)
 
-	res, err := run.Execute(ctx, run.Spec{Manifest: manifest, Packs: []qual.Pack{pack}, Target: target})
-	fmt.Fprintf(app.Stdout, "  --execute: %d table(s) executed, %d skipped, %d skipped (judge)\n",
+	// Same live viewport as `mpqt run`, so the offline smoke run shows each
+	// table completing (animated on a terminal, plain lines off one).
+	vp := newViewport(app.Stdout, app.LookupEnv, len(offline.Tables))
+	res, err := run.Execute(ctx, run.Spec{
+		Manifest: manifest, Packs: []qual.Pack{pack}, Target: target,
+		Progress: func(plan qual.TablePlan) {
+			if plan.Runnable {
+				vp.start(string(plan.Pack)+"/"+string(plan.Table), len(plan.Suite.Scenarios))
+			}
+		},
+		OnResult: func(plan qual.TablePlan, rep eval.Report) {
+			vp.finish(string(plan.Pack)+"/"+string(plan.Table),
+				rep.Summary.Assessments[eval.StatusPass], rep.Summary.Assessments[eval.StatusFail])
+		},
+	})
+	vp.close()
+	u.info("--execute: %d table(s) executed, %d skipped, %d skipped (judge)",
 		len(res.Reports), len(res.Skipped), judged)
 	if err != nil {
 		return fmt.Errorf("execute: %w", err)

@@ -1,6 +1,11 @@
-.PHONY: test fmt fmt-check staticcheck lint vuln secure fuzz packs
+.PHONY: test fmt fmt-check staticcheck lint vuln secure fuzz packs build run
 
 GO ?= go
+
+# The CLI binary. cmd/mpqt is a nested Go module (its own go.mod) and the only
+# place that imports github.com/looprig/llm, so it is built with GOWORK=off
+# from inside its own directory; the output path below is repo-root-relative.
+BIN = cmd/mpqt/mpqt
 
 # Module's own package dirs. go list stops at the nested module boundary
 # (cmd/mpqt has its own go.mod), so it is never touched by these targets.
@@ -9,13 +14,32 @@ GO_DIRS = $(shell go list -f '{{.Dir}}' ./...)
 test:
 	go test -race ./...
 
+# Build the mpqt CLI binary (CGO off + -trimpath per repo policy). The result
+# is $(BIN); add cmd/mpqt to PATH, or invoke it as ./$(BIN), or use `make run`.
+build:
+	cd cmd/mpqt && CGO_ENABLED=0 GOWORK=off $(GO) build -trimpath -o mpqt .
+
+# Run a qualification against a live target. Override any variable on the
+# command line, e.g.:
+#   make run PACKS=packs/safety-conduct
+#   make run MANIFEST=my-target.yaml PROFILE=prod.yaml CONFIG=judge.yaml PACKS=packs/tool-use
+# CONFIG is only needed by packs that use judge evaluators; passing it for a
+# programmatic-only pack is harmless. Extra flags go through FLAGS, e.g.:
+#   make run FLAGS='--max-rpm 30 --require restricted'
+MANIFEST ?= target.yaml
+PROFILE  ?= profile.yaml
+CONFIG   ?= gen.yaml
+PACKS    ?= packs/core-capability
+FLAGS    ?=
+run: build
+	./$(BIN) run --manifest $(MANIFEST) --profile $(PROFILE) --config $(CONFIG) --packs $(PACKS) $(FLAGS)
+
 # Smoke-run the whole shipped YAML pack corpus offline through the CLI:
 # strict load + lint + digest check on every pack, plus a scripted-fixture
 # execution of every programmatic table (judge tables are skipped, no network,
 # no cost). Complements the compiled TestShippedCorpus guard in pkg/packfile.
-packs:
-	cd cmd/mpqt && GOWORK=off $(GO) build -trimpath -o mpqt .
-	cmd/mpqt/mpqt validate --execute packs/*
+packs: build
+	./$(BIN) validate --execute packs/*
 
 # Format the whole module in place.
 fmt:

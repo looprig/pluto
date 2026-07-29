@@ -58,7 +58,20 @@ this repo that imports `github.com/looprig/llm`, keeping that dependency
 tree out of the root module's graph):
 
 ```
-cd cmd/mpqt && GOWORK=off go build -o mpqt ./...
+make build              # builds ./cmd/mpqt/mpqt
+```
+
+That is a convenience wrapper for `cd cmd/mpqt && CGO_ENABLED=0 GOWORK=off go
+build -trimpath -o mpqt .`. Invoke the result as `./cmd/mpqt/mpqt`, or add
+`cmd/mpqt` to your `PATH`, or install it with
+`go install github.com/looprig/mpqt/cmd/mpqt@latest`. The examples below write
+`mpqt` for brevity. To run a qualification without building by hand, `make
+run` builds then runs it against a live target:
+
+```
+make run PACKS=packs/core-capability
+# override any of: MANIFEST=target.yaml PROFILE=profile.yaml CONFIG=gen.yaml
+# PACKS=... and pass extra flags via FLAGS='--max-rpm 30 --require restricted'
 ```
 
 `packs/` ships eleven real, committed packs — 63 tables and 208 scenarios in
@@ -138,10 +151,18 @@ table against the live target, writes a canonical `reportjson` report, and
 exits nonzero (`ExitGateFailed`, 3) unless the resulting disposition meets
 `--require` (default `qualified`).
 
-**Rate limiting.** Tables and scenarios execute sequentially by default (one
-provider request at a time; `--concurrency` opts into bounded parallel
-samples). Both `run` and `gen` also apply client-side rate limiting to every
-target and judge call:
+**Concurrency.** Tables execute sequentially by default. `--concurrency N`
+runs up to N tables in parallel through a worker pool — the throughput win for
+a corpus of many single-scenario tables, where eval's own per-sample
+parallelism cannot help. Results are reassembled in pack/table order (the
+scorecard stays deterministic), and the first table error cancels the rest so
+a failing run doesn't burn more paid calls. Provider load stays bounded by the
+rate-limit flags below, so `--concurrency 8 --max-concurrent-requests 4` runs
+8 tables but never more than 4 requests in flight. The live output shows one
+spinner row per table currently running.
+
+**Rate limiting.** Both `run` and `gen` apply client-side rate limiting to
+every target and judge call:
 
 - `--max-retries` (default 4) — retry a rate-limited (HTTP 429) or transient
   5xx/network failure with exponential backoff and jitter; `0` disables it.
