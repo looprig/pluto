@@ -12,8 +12,8 @@ replace (
 
 require (
 	github.com/looprig/core v0.5.0
-	github.com/looprig/inference v0.7.0
-	github.com/looprig/llm v0.10.0
+	github.com/looprig/inference v0.8.0
+	github.com/looprig/llm v0.12.0
 	github.com/looprig/mpqt v0.1.0
 )
 

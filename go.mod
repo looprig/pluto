@@ -13,7 +13,7 @@ require github.com/looprig/eval v0.1.0
 
 require (
 	github.com/looprig/core v0.5.0
-	github.com/looprig/inference v0.7.0
+	github.com/looprig/inference v0.8.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
