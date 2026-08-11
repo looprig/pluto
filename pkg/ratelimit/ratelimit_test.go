@@ -90,7 +90,7 @@ func newTestClient(inner inference.Client, cfg Config, recorded *[]time.Duration
 }
 
 func apiErr(status int) error {
-	return &failure.APIError{Status: status, Message: "x"}
+	return &failure.APIError{Status: status}
 }
 
 func TestNewPassthroughWhenDisabled(t *testing.T) {
