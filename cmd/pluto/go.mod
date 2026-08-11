@@ -4,8 +4,8 @@ go 1.26.4
 
 require (
 	github.com/looprig/core v0.5.1
-	github.com/looprig/inference v0.9.1
-	github.com/looprig/llm v0.13.2
+	github.com/looprig/inference v0.9.2
+	github.com/looprig/llm v0.13.3
 	github.com/looprig/pluto v0.1.2
 )
 
@@ -15,7 +15,7 @@ require (
 	github.com/google/logger v1.1.2 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/looprig/credentials v0.1.0 // indirect
-	github.com/looprig/eval v0.1.1 // indirect
+	github.com/looprig/eval v0.1.2 // indirect
 	github.com/looprig/secrets v0.1.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
