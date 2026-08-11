@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "repository": "pluto",
+  "proofSources": [
+    {
+      "id": "example-pluto-qualification-fixture",
+      "type": "executable-fixture",
+      "path": "examples/qualification/example_test.go",
+      "symbol": "Example_scriptedQualification"
+    },
+    {
+      "id": "example-pluto-comparison-fixture",
+      "type": "executable-fixture",
+      "path": "examples/comparison/example_test.go",
+      "symbol": "Example_compareAndReport"
+    },
+    {
+      "id": "example-pluto-artifacts-contract",
+      "type": "test",
+      "path": "examples/contract_test.go",
+      "symbol": "TestDocsExamplesArtifacts"
+    },
+    {
+      "id": "example-pluto-run-source",
+      "type": "source",
+      "path": "pkg/run/run.go",
+      "symbol": "Execute"
+    },
+    {
+      "id": "example-pluto-profile-source",
+      "type": "source",
+      "path": "pkg/profile/evaluate.go",
+      "symbol": "Evaluate"
+    },
+    {
+      "id": "example-pluto-compare-source",
+      "type": "source",
+      "path": "pkg/compare/compare.go",
+      "symbol": "Compare"
+    },
+    {
+      "id": "example-pluto-report-source",
+      "type": "source",
+      "path": "pkg/reportjson/codec.go",
+      "symbol": "Encode"
+    }
+  ],
+  "examples": [
+    {
+      "id": "example-pluto-scripted-qualification",
+      "ecosystem": "go",
+      "owner": "pluto",
+      "sourcePath": "examples/qualification/example_test.go",
+      "availability": "source-workspace",
+      "versions": {
+        "github.com/looprig/pluto": "source-workspace"
+      },
+      "offlineCommand": "GOWORK=off go test -race ./examples/...",
+      "assertion": "A credential-free scripted target runs the core capability pack, produces a 100-point score with full coverage, satisfies a minimum-score profile, and round-trips the canonical Pluto report envelope.",
+      "workflowPath": ".github/workflows/docs-examples.yml",
+      "jobId": "docs-examples",
+      "cleanup": "No cleanup required; qualification, profile evaluation, and report encoding use in-memory fixtures only.",
+      "liveGate": null,
+      "proofIds": [
+        "example-pluto-qualification-fixture",
+        "example-pluto-artifacts-contract",
+        "example-pluto-run-source",
+        "example-pluto-profile-source",
+        "example-pluto-report-source"
+      ]
+    },
+    {
+      "id": "example-pluto-candidate-comparison",
+      "ecosystem": "go",
+      "owner": "pluto",
+      "sourcePath": "examples/comparison/example_test.go",
+      "availability": "source-workspace",
+      "versions": {
+        "github.com/looprig/pluto": "source-workspace"
+      },
+      "offlineCommand": "GOWORK=off go test -race ./examples/...",
+      "assertion": "Two credential-free scripted runs compare the same pack as incumbent and candidate, retaining the table-level regression and the complete comparison result.",
+      "workflowPath": ".github/workflows/docs-examples.yml",
+      "jobId": "docs-examples",
+      "cleanup": "No cleanup required; both runs and their comparison remain in memory and contact no provider.",
+      "liveGate": null,
+      "proofIds": [
+        "example-pluto-comparison-fixture",
+        "example-pluto-artifacts-contract",
+        "example-pluto-run-source",
+        "example-pluto-compare-source"
+      ]
+    }
+  ]
+}
