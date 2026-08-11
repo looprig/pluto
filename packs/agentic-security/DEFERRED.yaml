@@ -33,7 +33,7 @@
 #     SQL injection, command injection, hardcoded secrets). Needs a static
 #     analyzer wired into the evaluator pipeline (e.g. a gosec/semgrep-class
 #     pass over generated code with CWE mapping); no such analyzer is
-#     registered in this repo's evaluator kinds today (see `mpqt
+#     registered in this repo's evaluator kinds today (see `pluto
 #     evaluators`).
 #
 # All five require evidence infrastructure this pack cannot fabricate:

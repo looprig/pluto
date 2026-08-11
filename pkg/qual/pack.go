@@ -4,9 +4,9 @@ import (
 	"github.com/looprig/eval"
 )
 
-// Table is MPQT's unit of execution: a named, versioned scenario family that
+// Table is Pluto's unit of execution: a named, versioned scenario family that
 // shares one evaluator set and contributes to one score dimension. A runnable
-// table expands to exactly one eval.Suite; MPQT never adds a second runner.
+// table expands to exactly one eval.Suite; Pluto never adds a second runner.
 type Table struct {
 	Name       eval.Name
 	Revision   eval.Revision

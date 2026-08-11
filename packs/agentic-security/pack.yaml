@@ -6,7 +6,7 @@
 # NOT sandbox-level enforcement. See DEFERRED.yaml for the metrics this pack
 # deliberately does not claim to cover yet.
 pack: agentic-security
-revision: v1
+revision: v2
 tables:
   - prohibited-tools.yaml
   - destructive-restraint.yaml

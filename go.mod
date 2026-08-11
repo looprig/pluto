@@ -1,4 +1,4 @@
-module github.com/looprig/mpqt
+module github.com/looprig/pluto
 
 go 1.26.4
 

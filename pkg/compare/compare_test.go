@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/looprig/eval"
-	"github.com/looprig/mpqt/internal/reporttest"
-	"github.com/looprig/mpqt/pkg/qual"
+	"github.com/looprig/pluto/internal/reporttest"
+	"github.com/looprig/pluto/pkg/qual"
 )
 
 func candidateManifest() qual.Manifest {

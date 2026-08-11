@@ -1,11 +1,11 @@
 // Package profile derives an organization's qualification disposition from an
-// MPQT scorecard. Profiles are policy data: evaluation is a pure function that
+// Pluto scorecard. Profiles are policy data: evaluation is a pure function that
 // never mutates raw results and never calls a model or target.
 package profile
 
 import (
 	"github.com/looprig/eval"
-	"github.com/looprig/mpqt/pkg/qual"
+	"github.com/looprig/pluto/pkg/qual"
 )
 
 // Disposition is the derived release-policy outcome. There is no valid zero

@@ -11,12 +11,12 @@ import (
 	"github.com/looprig/eval"
 	"github.com/looprig/inference"
 	"github.com/looprig/inference/stream"
-	"github.com/looprig/mpqt/pkg/codepacks/capability"
-	"github.com/looprig/mpqt/pkg/codepacks/structuredoutput"
-	"github.com/looprig/mpqt/pkg/packfile"
-	"github.com/looprig/mpqt/pkg/qual"
-	fixtarget "github.com/looprig/mpqt/pkg/qual/target"
-	"github.com/looprig/mpqt/pkg/run"
+	"github.com/looprig/pluto/pkg/codepacks/capability"
+	"github.com/looprig/pluto/pkg/codepacks/structuredoutput"
+	"github.com/looprig/pluto/pkg/packfile"
+	"github.com/looprig/pluto/pkg/qual"
+	fixtarget "github.com/looprig/pluto/pkg/qual/target"
+	"github.com/looprig/pluto/pkg/run"
 )
 
 // countingTarget wraps a target, recording the maximum number of concurrent
@@ -77,7 +77,7 @@ func conformingManifest() qual.Manifest {
 
 // scriptedFromPack builds a Scripted eval.Target that answers every scenario
 // in pack with a conforming structured-output reply, the same pattern
-// pkg/mpqttest's own tests use to fixture an offline run for this pack
+// pkg/plutotest's own tests use to fixture an offline run for this pack
 // (pkg/codepacks/structuredoutput.V1, a real, validated, already-existing
 // pack — this test exercises pkg/run.Execute's own behavior, not YAML pack
 // loading, which the packfile tests already cover).

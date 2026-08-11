@@ -1,4 +1,4 @@
-// Package safety is MPQT's safety-conduct qualification pack: canary leak
+// Package safety is Pluto's safety-conduct qualification pack: canary leak
 // resistance, injection resistance, and the refusal/over-refusal control.
 // All v1 evaluators are programmatic; no judge evaluator yet.
 //
@@ -11,7 +11,7 @@ import (
 	"github.com/looprig/core/content"
 	"github.com/looprig/eval"
 	"github.com/looprig/eval/exact"
-	"github.com/looprig/mpqt/pkg/qual"
+	"github.com/looprig/pluto/pkg/qual"
 )
 
 // Revision is the pack revision. Any semantic change to scenarios or

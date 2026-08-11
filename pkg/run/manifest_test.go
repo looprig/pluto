@@ -6,8 +6,8 @@ import (
 
 	"github.com/looprig/eval"
 	"github.com/looprig/inference/model"
-	"github.com/looprig/mpqt/pkg/qual"
-	"github.com/looprig/mpqt/pkg/run"
+	"github.com/looprig/pluto/pkg/qual"
+	"github.com/looprig/pluto/pkg/run"
 )
 
 func TestManifestModel(t *testing.T) {

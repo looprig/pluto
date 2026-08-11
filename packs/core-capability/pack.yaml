@@ -1,10 +1,10 @@
 # yaml-language-server: $schema=../../pkg/packfile/schema.json
 #
-# core-capability: MPQT's baseline capability pack. Plain-text conversation
+# core-capability: Pluto's baseline capability pack. Plain-text conversation
 # only (no tools, no structured output). Programmatic tables pin exact answers
 # one-per-table; grouped programmatic and judge tables carry many scenarios.
 pack: core-capability
-revision: v1
+revision: v2
 tables:
   - if-exact-phrase.yaml
   - if-forbidden-word.yaml

@@ -18,7 +18,7 @@ type TableResult struct {
 	Report    eval.Report
 }
 
-// Scorecard is the objective result of one MPQT run for one manifest. It
+// Scorecard is the objective result of one Pluto run for one manifest. It
 // carries no policy: dispositions are derived later by a profile.
 type Scorecard struct {
 	Manifest Manifest

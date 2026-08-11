@@ -11,10 +11,10 @@ import (
 	"github.com/looprig/eval"
 	"github.com/looprig/inference"
 	"github.com/looprig/inference/model"
-	"github.com/looprig/mpqt/pkg/gen"
-	"github.com/looprig/mpqt/pkg/packfile"
-	"github.com/looprig/mpqt/pkg/pricing"
-	"github.com/looprig/mpqt/pkg/qual"
+	"github.com/looprig/pluto/pkg/gen"
+	"github.com/looprig/pluto/pkg/packfile"
+	"github.com/looprig/pluto/pkg/pricing"
+	"github.com/looprig/pluto/pkg/qual"
 )
 
 // cmdGen loads generator config, runs the preflight cost estimate (unless
@@ -46,29 +46,29 @@ func cmdGen(app App, args []string) int {
 	app.RateLimit = rf.config()
 
 	if *packDir == "" || *table == "" || *configPath == "" {
-		fmt.Fprintln(app.Stderr, "mpqt gen: --pack, --table, and --config are required")
+		fmt.Fprintln(app.Stderr, "pluto gen: --pack, --table, and --config are required")
 		fs.Usage()
 		return ExitUsage
 	}
 	if *n < 1 {
-		fmt.Fprintln(app.Stderr, "mpqt gen: -n must be at least 1")
+		fmt.Fprintln(app.Stderr, "pluto gen: -n must be at least 1")
 		return ExitUsage
 	}
 
 	doc, err := packfile.LoadDir(*packDir)
 	if err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt gen:", err)
+		fmt.Fprintln(app.Stderr, "pluto gen:", err)
 		return ExitCommandFailure
 	}
 	tf, filename, err := tableAndFile(doc, *table)
 	if err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt gen:", err)
+		fmt.Fprintln(app.Stderr, "pluto gen:", err)
 		return ExitCommandFailure
 	}
 
 	cfg, err := loadLLMConfig(*configPath)
 	if err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt gen: load config:", err)
+		fmt.Fprintln(app.Stderr, "pluto gen: load config:", err)
 		return ExitCommandFailure
 	}
 	genModel := cfg.toModel()
@@ -77,7 +77,7 @@ func cmdGen(app App, args []string) int {
 	noteMissingKey(u, app, genModel.Provider)
 	client, err := app.client(genModel)
 	if err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt gen:", err)
+		fmt.Fprintln(app.Stderr, "pluto gen:", err)
 		return ExitCommandFailure
 	}
 
@@ -86,7 +86,7 @@ func cmdGen(app App, args []string) int {
 	if !pf.skipCostEstimate {
 		plan, err := buildGenPreflight(ctx, app, pf, doc.Pack.Pack, tf, genModel)
 		if err != nil {
-			fmt.Fprintln(app.Stderr, "mpqt gen: preflight:", err)
+			fmt.Fprintln(app.Stderr, "pluto gen: preflight:", err)
 			return ExitCommandFailure
 		}
 		renderPreflight(u, plan)
@@ -105,7 +105,7 @@ func cmdGen(app App, args []string) int {
 		Doc: doc, Table: *table, N: *n, Focus: *focus, Intent: *intent, Model: genModel,
 	})
 	if err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt gen:", err)
+		fmt.Fprintln(app.Stderr, "pluto gen:", err)
 		return ExitCommandFailure
 	}
 
@@ -117,7 +117,7 @@ func cmdGen(app App, args []string) int {
 
 	if *rawOut {
 		if err := writeRawJSONL(app.Stdout, result.Accepted); err != nil {
-			fmt.Fprintln(app.Stderr, "mpqt gen: raw:", err)
+			fmt.Fprintln(app.Stderr, "pluto gen: raw:", err)
 			return ExitCommandFailure
 		}
 	}
@@ -129,18 +129,18 @@ func cmdGen(app App, args []string) int {
 	generatedBy := genModel.Name + "/" + app.Now().Format("2006-01-02")
 	rawBytes, ok := doc.Raw[filename]
 	if !ok {
-		fmt.Fprintf(app.Stderr, "mpqt gen: internal: no raw bytes for table file %s\n", filename)
+		fmt.Fprintf(app.Stderr, "pluto gen: internal: no raw bytes for table file %s\n", filename)
 		return ExitCommandFailure
 	}
 	appended, err := gen.Append(filename, rawBytes, result.Accepted, generatedBy)
 	if err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt gen: append:", err)
+		fmt.Fprintln(app.Stderr, "pluto gen: append:", err)
 		return ExitCommandFailure
 	}
 
 	if *noWrite {
 		if _, err := app.Stdout.Write(appended); err != nil {
-			fmt.Fprintln(app.Stderr, "mpqt gen:", err)
+			fmt.Fprintln(app.Stderr, "pluto gen:", err)
 			return ExitCommandFailure
 		}
 		return ExitOK
@@ -148,7 +148,7 @@ func cmdGen(app App, args []string) int {
 
 	outPath := filepath.Join(doc.Dir, filename)
 	if err := os.WriteFile(outPath, appended, 0o600); err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt gen: write:", err)
+		fmt.Fprintln(app.Stderr, "pluto gen: write:", err)
 		return ExitCommandFailure
 	}
 	u.ok("appended %d scenario(s) → %s", len(result.Accepted), outPath)

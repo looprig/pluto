@@ -1,4 +1,4 @@
-# LLM config used by `mpqt gen` AND by judge-evaluator tables at `mpqt run`
+# LLM config used by `pluto gen` AND by judge-evaluator tables at `pluto run`
 # time (pass with --config gen.yaml). Points at the same local LM Studio
 # gemma so judge-backed tables run without any cloud key.
 #

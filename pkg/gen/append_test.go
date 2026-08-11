@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/looprig/mpqt/pkg/gen"
-	"github.com/looprig/mpqt/pkg/packfile"
+	"github.com/looprig/pluto/pkg/gen"
+	"github.com/looprig/pluto/pkg/packfile"
 )
 
 // fixtureTable is a hand-authored table file carrying a comment header (the

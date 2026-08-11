@@ -1,5 +1,5 @@
 // Package compare rolls up an eval/compare diff between a candidate and an
-// incumbent MPQT scorecard, aligned by (Pack, Table). It performs no trial
+// incumbent Pluto scorecard, aligned by (Pack, Table). It performs no trial
 // pairing of its own: github.com/looprig/eval/compare already classifies each
 // (scenario, evaluator) case, retaining every per-trial result; this package
 // only aligns tables across the two scorecards and rolls the retained case
@@ -11,7 +11,7 @@ import (
 
 	"github.com/looprig/eval"
 	evalcompare "github.com/looprig/eval/compare"
-	"github.com/looprig/mpqt/pkg/qual"
+	"github.com/looprig/pluto/pkg/qual"
 )
 
 // Side names why a table failed to align between the two scorecards.

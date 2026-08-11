@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/looprig/mpqt/pkg/cli"
+	"github.com/looprig/pluto/pkg/cli"
 )
 
 const genCannedResponse = `{"scenarios":[{"id":"gen-001","input":[{"role":"user","text":"hi"}]}]}`

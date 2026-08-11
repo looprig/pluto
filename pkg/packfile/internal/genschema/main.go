@@ -7,7 +7,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/looprig/mpqt/pkg/packfile"
+	"github.com/looprig/pluto/pkg/packfile"
 )
 
 // out is schema.json's path relative to the working directory `go generate`

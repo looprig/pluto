@@ -38,7 +38,7 @@ type TableFile struct {
 const judgeKind = "judge"
 
 // UsesJudge reports whether the table wires any judge evaluator. Offline
-// smoke runs (mpqt validate --execute) skip such tables: a judge kind cannot
+// smoke runs (pluto validate --execute) skip such tables: a judge kind cannot
 // be built without a judge client and cannot be scored from a scripted,
 // networkless fixture.
 func (tf TableFile) UsesJudge() bool {

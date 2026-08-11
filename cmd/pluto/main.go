@@ -1,6 +1,6 @@
-// Command mpqt is the runnable CLI binary. It is the composition root that
+// Command pluto is the runnable CLI binary. It is the composition root that
 // wires pkg/cli.App's injected-dependency fields to real implementations
-// backed by github.com/looprig/llm/auto -- the only place in the entire mpqt
+// backed by github.com/looprig/llm/auto -- the only place in the entire Pluto
 // repo that imports github.com/looprig/llm. Everything under pkg/ stays
 // llm-free by design, taking inference.Client/pricing.Counter as injected
 // interfaces instead.
@@ -15,9 +15,9 @@ import (
 	"github.com/looprig/inference/auth"
 	"github.com/looprig/inference/model"
 	"github.com/looprig/llm/auto"
-	"github.com/looprig/mpqt/pkg/cli"
-	"github.com/looprig/mpqt/pkg/packfile"
-	"github.com/looprig/mpqt/pkg/pricing"
+	"github.com/looprig/pluto/pkg/cli"
+	"github.com/looprig/pluto/pkg/packfile"
+	"github.com/looprig/pluto/pkg/pricing"
 )
 
 func main() {

@@ -1,5 +1,5 @@
-// Package cli implements every mpqt command against injected dependencies.
-// It is llm-free; cmd/mpqt (the nested module) supplies the constructors
+// Package cli implements every pluto command against injected dependencies.
+// It is llm-free; cmd/pluto (the nested module) supplies the constructors
 // (App.NewClient, App.NewCounter) that reach a real inference.Client and
 // pricing.Counter. This package never imports github.com/looprig/llm and
 // never constructs a client or counter itself -- it only ever calls the
@@ -20,11 +20,11 @@ import (
 	"github.com/looprig/eval"
 	"github.com/looprig/inference"
 	"github.com/looprig/inference/model"
-	"github.com/looprig/mpqt/pkg/packfile"
-	"github.com/looprig/mpqt/pkg/pricing"
-	"github.com/looprig/mpqt/pkg/profile"
-	"github.com/looprig/mpqt/pkg/qual"
-	"github.com/looprig/mpqt/pkg/ratelimit"
+	"github.com/looprig/pluto/pkg/packfile"
+	"github.com/looprig/pluto/pkg/pricing"
+	"github.com/looprig/pluto/pkg/profile"
+	"github.com/looprig/pluto/pkg/qual"
+	"github.com/looprig/pluto/pkg/ratelimit"
 )
 
 // Process exit codes, per Main's own doc comment: 0 ok; 1 command failure; 2
@@ -66,7 +66,7 @@ type App struct {
 // so an unconfigured App pays no wrapping cost.
 func (a App) client(m model.Model) (inference.Client, error) {
 	if a.NewClient == nil {
-		return nil, errors.New("mpqt: no LLM client configured (App.NewClient is nil); this command needs cmd/mpqt or another composition root that supplies one")
+		return nil, errors.New("pluto: no LLM client configured (App.NewClient is nil); this command needs cmd/pluto or another composition root that supplies one")
 	}
 	c, err := a.NewClient(m)
 	if err != nil {
@@ -179,14 +179,14 @@ func Main(args []string, app App) int {
 	case "compare":
 		return cmdCompare(app, rest)
 	default:
-		fmt.Fprintf(app.Stderr, "mpqt: unknown command %q\n", cmd)
+		fmt.Fprintf(app.Stderr, "pluto: unknown command %q\n", cmd)
 		printTopUsage(app.Stderr)
 		return ExitUsage
 	}
 }
 
 func printTopUsage(w io.Writer) {
-	fmt.Fprint(w, `usage: mpqt <command> [flags]
+	fmt.Fprint(w, `usage: pluto <command> [flags]
 
 commands:
   init <name> [dir]   scaffold a custom pack directory
@@ -197,7 +197,7 @@ commands:
   run                 execute packs against a live target and gate on a profile
   compare             gate a candidate report against an incumbent report
 
-Run 'mpqt <command> -h' for command-specific flags.
+Run 'pluto <command> -h' for command-specific flags.
 `)
 }
 
@@ -210,7 +210,7 @@ Run 'mpqt <command> -h' for command-specific flags.
 func newFlagSet(name, synopsis string) *flag.FlagSet {
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)
 	fs.Usage = func() {
-		fmt.Fprintf(fs.Output(), "usage: mpqt %s\n", synopsis)
+		fmt.Fprintf(fs.Output(), "usage: pluto %s\n", synopsis)
 		fs.PrintDefaults()
 	}
 	return fs
@@ -313,7 +313,7 @@ func loadLLMConfig(path string) (LLMConfig, error) {
 
 // --- provider API key presence (never value) ---
 
-// providerEnvVar mirrors cmd/mpqt's own naming convention (Task 12 Step 4):
+// providerEnvVar mirrors cmd/pluto's own naming convention (Task 12 Step 4):
 // the provider name upper-cased with "-" -> "_" plus "_API_KEY".
 func providerEnvVar(provider model.ProviderName) string {
 	return strings.ToUpper(strings.ReplaceAll(string(provider), "-", "_")) + "_API_KEY"
@@ -388,16 +388,16 @@ func (rf *rateLimitFlags) config() ratelimit.Config {
 // never a silent pass.
 func gatePreflight(pf *pricingFlags, plan pricing.Plan, w io.Writer) (ok bool, code int) {
 	if pf.requirePriced && (!plan.Expected.Known || !plan.Max.Known) {
-		fmt.Fprintf(w, "mpqt: --require-priced set but the cost estimate is incomplete (%s)\n", incompleteReason(plan))
+		fmt.Fprintf(w, "pluto: --require-priced set but the cost estimate is incomplete (%s)\n", incompleteReason(plan))
 		return false, ExitPricing
 	}
 	if pf.maxCostUSD >= 0 {
 		if !plan.Max.Known {
-			fmt.Fprintf(w, "mpqt: --max-estimated-cost-usd=%.4f set but the maximum cost estimate is unknown (%s)\n", pf.maxCostUSD, incompleteReason(plan))
+			fmt.Fprintf(w, "pluto: --max-estimated-cost-usd=%.4f set but the maximum cost estimate is unknown (%s)\n", pf.maxCostUSD, incompleteReason(plan))
 			return false, ExitPricing
 		}
 		if plan.Max.USD > pf.maxCostUSD {
-			fmt.Fprintf(w, "mpqt: estimated maximum cost $%.4f exceeds ceiling $%.4f\n", plan.Max.USD, pf.maxCostUSD)
+			fmt.Fprintf(w, "pluto: estimated maximum cost $%.4f exceeds ceiling $%.4f\n", plan.Max.USD, pf.maxCostUSD)
 			return false, ExitPricing
 		}
 	}

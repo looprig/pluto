@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/looprig/eval"
-	"github.com/looprig/mpqt/pkg/qual"
+	"github.com/looprig/pluto/pkg/qual"
 )
 
 func card(dims ...qual.DimensionScore) fakeCard {

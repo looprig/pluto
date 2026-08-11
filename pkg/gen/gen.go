@@ -13,7 +13,7 @@ import (
 	"github.com/looprig/core/content"
 	"github.com/looprig/inference"
 	"github.com/looprig/inference/model"
-	"github.com/looprig/mpqt/pkg/packfile"
+	"github.com/looprig/pluto/pkg/packfile"
 )
 
 // Bounds on Request.N: generating zero candidates is pointless and an

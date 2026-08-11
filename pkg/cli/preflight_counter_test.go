@@ -9,7 +9,7 @@ import (
 
 	"github.com/looprig/inference"
 	"github.com/looprig/inference/model"
-	"github.com/looprig/mpqt/pkg/pricing"
+	"github.com/looprig/pluto/pkg/pricing"
 )
 
 // stubCounter is a no-op pricing.Counter used to assert the success path

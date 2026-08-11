@@ -9,7 +9,7 @@ import (
 	"github.com/looprig/core/content"
 	"github.com/looprig/eval"
 	"github.com/looprig/inference"
-	"github.com/looprig/mpqt/pkg/qual"
+	"github.com/looprig/pluto/pkg/qual"
 )
 
 // heuristicQuality labels a token estimate produced without a real Counter:

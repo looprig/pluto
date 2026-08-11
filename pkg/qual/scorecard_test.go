@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/looprig/eval"
-	"github.com/looprig/mpqt/internal/reporttest"
+	"github.com/looprig/pluto/internal/reporttest"
 )
 
 func TestScorecardDimensions(t *testing.T) {

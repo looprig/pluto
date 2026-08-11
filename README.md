@@ -1,46 +1,46 @@
-# mpqt — Model Power Quality Test
+# Pluto — Model Power Quality Test
 
-MPQT qualifies a newly released or newly configured model for enterprise use.
+Pluto qualifies a newly released or newly configured model for enterprise use.
 The name borrows from electrical power-quality testing: a model is placed
 under representative load, faults, distorted inputs, and hostile conditions;
 its output quality, stability, safety, and unintended side effects are
 measured before it is connected to an organization's workload.
 
-MPQT is a product and test-pack layer over
+Pluto is a product and test-pack layer over
 [`github.com/looprig/eval`](https://github.com/looprig/eval), the reusable
 agentic evaluation framework. Where `eval` provides conversations,
-evaluators, findings, and reports, MPQT contributes the parts specific to
+evaluators, findings, and reports, Pluto contributes the parts specific to
 qualifying an LLM model or configuration for enterprise use: versioned test
 packs (structured output, tool use, core capability, safety, operational
 stability), a run manifest that identifies exactly what was tested and how,
 a bounded scorecard that rolls raw evaluator verdicts up by dimension without
 smuggling in policy, and an organization qualification profile that turns a
-scorecard into a disposition. MPQT never forks the `eval` runner and takes no
+scorecard into a disposition. Pluto never forks the `eval` runner and takes no
 runtime action against live sessions — it only plans, executes, and
 interprets `eval` suites.
 
-A typical MPQT run looks like: build a `qual.Manifest` describing the
+A typical Pluto run looks like: build a `qual.Manifest` describing the
 candidate (provider, model, base URL, declared capabilities), plan one or
 more `qual.Pack`s against it with `qual.Plan` (which skips any table whose
 required capability the manifest doesn't declare), execute every runnable
 table with `eval.Run` to produce a `qual.Scorecard`, and then either compare
 that scorecard against an incumbent's (`compare.Compare`) or gate a
 deployment decision on it against an organization `profile.Profile`
-(`profile.Evaluate`). `mpqttest.Run` and `mpqttest.RequireDisposition` wire
+(`profile.Evaluate`). `plutotest.Run` and `plutotest.RequireDisposition` wire
 this whole flow into ordinary `go test`, and `reportjson` gives the result a
 canonical, redacted, versioned JSON form for storage or transport.
 
 ## Quick start
 
-MPQT packs come in two equally first-class forms, and neither supersedes the
+Pluto packs come in two equally first-class forms, and neither supersedes the
 other:
 
-- **YAML + CLI** — hand-editable (or `mpqt gen`-generated) YAML under
-  `packs/`, loaded by `pkg/packfile` and run by the `mpqt` binary
-  (`cmd/mpqt`). No Go required to write or run a pack.
+- **YAML + CLI** — hand-editable (or `pluto gen`-generated) YAML under
+  `packs/`, loaded by `pkg/packfile` and run by the `pluto` binary
+  (`cmd/pluto`). No Go required to write or run a pack.
 - **Go code** — packs as `qual.Pack` values in `pkg/codepacks/`, run directly
-  with `pkg/mpqttest` inside ordinary `go test`, exactly as
-  `pkg/mpqttest/run_test.go` and each pack's own
+  with `pkg/plutotest` inside ordinary `go test`, exactly as
+  `pkg/plutotest/run_test.go` and each pack's own
   `pkg/codepacks/*/v1_test.go` do. This path is permanent, not a legacy
   holdover: it is how the five built-in packs (`core-capability`,
   `tool-use`, `structured-output`, `safety-conduct`,
@@ -53,19 +53,19 @@ Pick whichever fits your workflow; both compile down to the same `qual.Pack`
 
 ### YAML + CLI walkthrough
 
-Build the CLI (its own nested Go module — `cmd/mpqt` is the only place in
+Build the CLI (its own nested Go module — `cmd/pluto` is the only place in
 this repo that imports `github.com/looprig/llm`, keeping that dependency
 tree out of the root module's graph):
 
 ```
-make build              # builds ./cmd/mpqt/mpqt
+make build              # builds ./cmd/pluto/pluto
 ```
 
-That is a convenience wrapper for `cd cmd/mpqt && CGO_ENABLED=0 GOWORK=off go
-build -trimpath -o mpqt .`. Invoke the result as `./cmd/mpqt/mpqt`, or add
-`cmd/mpqt` to your `PATH`, or install it with
-`go install github.com/looprig/mpqt/cmd/mpqt@latest`. The examples below write
-`mpqt` for brevity. To run a qualification without building by hand, `make
+That is a convenience wrapper for `cd cmd/pluto && CGO_ENABLED=0 GOWORK=off go
+build -trimpath -o pluto .`. Invoke the result as `./cmd/pluto/pluto`, or add
+`cmd/pluto` to your `PATH`, or install it with
+`go install github.com/looprig/pluto/cmd/pluto@latest`. The examples below write
+`pluto` for brevity. To run a qualification without building by hand, `make
 run` builds then runs it against a live target:
 
 ```
@@ -84,7 +84,7 @@ trivial requests. Use any shipped pack as the model for a hand-authored pack,
 or scaffold your own:
 
 ```
-$ mpqt init my-assistant
+$ pluto init my-assistant
 init: wrote my-assistant/pack.yaml, my-assistant/example.yaml, my-assistant/schema.json
 ```
 
@@ -96,7 +96,7 @@ Edit the template — paste your real system prompt and tools, replace the
 placeholder evaluator and scenario — then validate:
 
 ```
-$ mpqt validate --execute packs/tool-use
+$ pluto validate --execute packs/tool-use
 validate: packs/tool-use
   --execute: 3 table(s) executed, 0 skipped, 2 skipped (judge)
 ```
@@ -108,11 +108,11 @@ against the portable JSON-Schema subset, and verifies the pack's digest
 against its committed `pack.digest` lockfile when one exists. `--execute`
 additionally smoke-runs every table's `script:` section offline through
 `pkg/run.Execute` — no network, no cost, useful in CI as a pack-level test
-independent of any live model. Run `mpqt schema` to print the JSON Schema and
-`mpqt evaluators` to list every evaluator kind:
+independent of any live model. Run `pluto schema` to print the JSON Schema and
+`pluto evaluators` to list every evaluator kind:
 
 ```
-$ mpqt evaluators
+$ pluto evaluators
 KIND             OPTIONS         EVIDENCE                                                                              DOC
 forbidden-text   substrings      none required; a vacuous (no substrings) configuration errors rather than passing     asserts no forbidden substring appears in the assistant's text output
 forbidden-tool   tool            none required beyond the conversation trace itself                                    asserts a tool call with the given name was not made
@@ -129,7 +129,7 @@ Generate more candidate scenarios with an LLM (needs a committed, secret-free
 environment — see `LLMConfig` in `pkg/cli/cli.go`):
 
 ```
-mpqt gen --pack packs/tool-use --table discipline -n 5 --config gen.yaml
+pluto gen --pack packs/tool-use --table discipline -n 5 --config gen.yaml
 ```
 
 `gen` prints a preflight token/cost estimate before the paid call, mechanically
@@ -142,7 +142,7 @@ Run a pack against a live target (needs a `qual.Manifest` and a
 for the exact field mapping):
 
 ```
-mpqt run --manifest target.yaml --profile enterprise.yaml --packs packs/tool-use --require qualified
+pluto run --manifest target.yaml --profile enterprise.yaml --packs packs/tool-use --require qualified
 ```
 
 `run` performs the same capability preflight as `qual.Plan`, prints a
@@ -182,7 +182,7 @@ Gate a candidate against an incumbent's prior report the same way CI would
 two reports actually ran):
 
 ```
-$ mpqt compare --candidate candidate-report.json --incumbent incumbent-report.json
+$ pluto compare --candidate candidate-report.json --incumbent incumbent-report.json
 compare: tool-use/discipline regressed=0 improved=1 unchanged=1 incompatible=0
 compare: total regressions=0
 ```
@@ -194,12 +194,12 @@ compare: total regressions=0
 
 - `TableFile.Run` (`run:` per-table trials/concurrency/timeout overrides) is
   decoded and schema-documented but **not yet wired**: `pkg/run.Execute` and
-  the CLI only support one *global* `eval.RunConfig` (`mpqt run --trials
+  the CLI only support one *global* `eval.RunConfig` (`pluto run --trials
   --concurrency`). A table that sets a non-zero `run:` block gets a
   `Document.Lint` warning saying exactly that, rather than silently
   pretending the override took effect. Per-table overrides remain a
   documented future task.
-- `mpqt validate --api-format` dialect-projectability checking (beyond the
+- `pluto validate --api-format` dialect-projectability checking (beyond the
   default portable-subset check) is not yet implemented; passing a non-empty
   value prints a note rather than actually checking Gemini/other-dialect
   projection.
@@ -209,7 +209,7 @@ compare: total regressions=0
 This illustrates the shape (it is not a file that exists verbatim in the
 repo): a pack's `V1()` runs against a scripted, deterministic target and
 gates on `profile.Qualified` — no YAML, no CLI, just `qual.Pack` values and
-`pkg/mpqttest` inside `go test`:
+`pkg/plutotest` inside `go test`:
 
 ```go
 func TestOfflineQualification(t *testing.T) {
@@ -226,7 +226,7 @@ func TestOfflineQualification(t *testing.T) {
 			}
 		}
 	}
-	card := mpqttest.Run(t, mpqttest.RunSpec{
+	card := plutotest.Run(t, plutotest.RunSpec{
 		Manifest: qual.Manifest{
 			TargetID: "offline-example", Role: qual.RoleCandidate,
 			Provider: "test", Model: "fake", APIFormat: "openai",
@@ -238,7 +238,7 @@ func TestOfflineQualification(t *testing.T) {
 		Target: fixtarget.NewScripted("offline-example", scripts),
 	})
 	minScore := 90.0
-	mpqttest.RequireDisposition(t, card, profile.Profile{
+	plutotest.RequireDisposition(t, card, profile.Profile{
 		Name: "example", Revision: "1",
 		Requirements: []profile.Requirement{
 			{Dimension: "capability", MinScore: &minScore},
@@ -249,17 +249,17 @@ func TestOfflineQualification(t *testing.T) {
 
 For compiled, runnable proof of exactly this pattern (including a deviant
 target that fails to qualify, and a manifest that omits a capability so a
-table is skipped), see `pkg/mpqttest/run_test.go`. Every codepack also proves
+table is skipped), see `pkg/plutotest/run_test.go`. Every codepack also proves
 itself in isolation the same way in its own `pkg/codepacks/*/v1_test.go`
 (`TestPackV1Valid`, `TestPackV1AgainstConformingTarget`,
 `TestPackV1AgainstMalformedTarget` per pack). Run them like any other tests:
 
 ```
-GOWORK=off go test -race ./pkg/mpqttest/... ./pkg/codepacks/...
+GOWORK=off go test -race ./pkg/plutotest/... ./pkg/codepacks/...
 ```
 
 Running a pack against a real, live model — as opposed to the scripted
-fixture target above — is `mpqt run`'s job (see "YAML + CLI walkthrough"
+fixture target above — is `pluto run`'s job (see "YAML + CLI walkthrough"
 above); there is no separate Go-test path for a live run.
 
 ## Pack catalogue
@@ -341,7 +341,7 @@ The packs measure what a conversation trace and a text/tool-call evaluator
 can honestly observe today; several spec metrics need evidence
 infrastructure this repo does not yet produce, and are deliberately
 deferred rather than faked. Each gap is documented in-place — a `DEFERRED`
-table or comment block in the affected pack (`mpqt evaluators` lists every
+table or comment block in the affected pack (`pluto evaluators` lists every
 evaluator kind actually available, so you can see the gap yourself):
 
 - **`agentic-security`** — sandbox-escape, secret-file reads,
@@ -384,7 +384,7 @@ evaluator kind actually available, so you can see the gap yourself):
   safe handling is enforced today (`psychosocial-safety/DEFERRED.yaml`).
 
 Each `DEFERRED.yaml` still loads and executes cleanly — it carries one
-trivially-passing placeholder scenario so `mpqt validate --execute` has
+trivially-passing placeholder scenario so `pluto validate --execute` has
 something to point to — rather than silently vanishing from the pack.
 
 ## Profile semantics
@@ -409,9 +409,9 @@ yields exactly one of four dispositions, in this precedence:
 ## Target-class limitations
 
 `qual.Manifest.EndpointClass` records where the target under test actually
-executes, because that placement bounds what MPQT can honestly claim to have
+executes, because that placement bounds what Pluto can honestly claim to have
 observed. A **remote** endpoint (hosted inference over HTTPS, the common
-case for third-party model providers) is observed purely at the wire: MPQT
+case for third-party model providers) is observed purely at the wire: Pluto
 sees the requests it sent, the responses and tool calls that came back,
 reported token usage, latency, and any transport-level errors — nothing
 about the process that produced them. It cannot observe the provider's
@@ -422,7 +422,7 @@ the provider's infrastructure. A **local** endpoint (an inference server
 running on the same host) and a **process** endpoint (a foreign process
 executed under sandbox control) can in principle support deeper
 instrumentation — resource accounting, filesystem/network egress
-monitoring, process-level enforcement — but MPQT's Phase 1 packs do not yet
+monitoring, process-level enforcement — but Pluto's Phase 1 packs do not yet
 exploit that; the endpoint class is recorded today so that later, richer
 target adapters have a place to declare and act on the distinction, and so
 that every scorecard is honest about which class of evidence it rests on.
@@ -438,16 +438,16 @@ whichever fits, per pack:
   enforce the rest. Custom evaluators implement `eval.Evaluator` and are wired
   at the composition root; custom packs are just values of `qual.Pack`, so
   private packs live in your own repo and run through the same
-  `mpqttest.Run`.
+  `plutotest.Run`.
 - **YAML pack** (`packs/<name>/*.yaml`; `packs/tool-use/discipline.yaml` is a
   small, easy one to copy the shape of, and `packs/custom/` is the worked
   "bring your own application" example — see "Pack catalogue" above):
   - **Manually**: append a scenario block to the table's YAML file and run
-    `mpqt validate`. Every file carries a `# yaml-language-server: $schema=…`
+    `pluto validate`. Every file carries a `# yaml-language-server: $schema=…`
     header, so any editor running the standard YAML language server (VS Code
     via the Red Hat YAML extension, JetBrains, Neovim) gives completion,
     hover documentation, and inline validation against the shipped JSON
-    Schema; `mpqt schema` prints it and `mpqt evaluators` lists every
+    Schema; `pluto schema` prints it and `pluto evaluators` lists every
     evaluator kind, its options, and the evidence it needs. A judge table's
     `rubric:` can either name one of eval's built-in catalog rubrics
     (`answer_relevance`, `groundedness`, `instruction_adherence`,
@@ -455,32 +455,32 @@ whichever fits, per pack:
     `internet_use_appropriateness`) with no further block, or define its own
     rubric inline under `rubrics:` — an inline rubric may not reuse a catalog
     name.
-  - **With an LLM**: `mpqt gen --pack packs/tool-use --table discipline -n 5
+  - **With an LLM**: `pluto gen --pack packs/tool-use --table discipline -n 5
     --config gen.yaml` generates candidate scenarios via structured output —
     prompted with the table's real tool schemas, evaluator constraints, and
     existing scenarios as seeds — then validates, dedupes, and appends them
     with provenance labels. You review the git diff. Model choice lives in a
     committed config file; the API key comes only from the environment.
 
-`mpqt validate --execute packs/*` (what `make packs` runs in CI) smoke-runs
+`pluto validate --execute packs/*` (what `make packs` runs in CI) smoke-runs
 every programmatic table offline with no network or cost, reporting how many
 judge tables it skipped (`N skipped (judge)`) since those need a live judge
 client rather than a script.
 
 Either way, bump the table's `revision:` (YAML) or the pack's `Revision`
-constant (Go) for any semantic change, and re-run `mpqt validate` (YAML) or
+constant (Go) for any semantic change, and re-run `pluto validate` (YAML) or
 the pack's own tests (Go) — a stale committed `pack.digest` lockfile fails
-`mpqt validate` on exactly this ("revision bump required"). Regenerate a YAML
+`pluto validate` on exactly this ("revision bump required"). Regenerate a YAML
 pack's lockfile after a deliberate, revision-bumped change with
-`mpqt validate --write-digests packs/*` and commit the result.
+`pluto validate --write-digests packs/*` and commit the result.
 
 ## Roadmap
 
 Phase 2 (the [design doc](docs/2026-07-23-phase2-packfiles-generation-cli-design.md),
 now marked Implemented) delivered everything in "Quick start" above: the YAML
-pack corpus and `pkg/packfile` trust boundary, `mpqt gen`, a live `mpqt run`
-with preflight token/cost estimation, `mpqt compare` as a CI model-upgrade
-gate, and custom packs (`mpqt init`) — paste your own system prompt and
+pack corpus and `pkg/packfile` trust boundary, `pluto gen`, a live `pluto run`
+with preflight token/cost estimation, `pluto compare` as a CI model-upgrade
+gate, and custom packs (`pluto init`) — paste your own system prompt and
 tools, describe evaluation criteria as a plain-language rubric, and generate
 scenarios for *your* application rather than only the built-in packs. The
 design doc's "Amendments" section records where delivery departed from the

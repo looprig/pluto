@@ -30,7 +30,7 @@ type BuildContext struct {
 var ErrJudgeUnconfigured = errors.New("packfile: judge evaluator needs a judge client (--config llm block)")
 
 // Kind is one registry entry. Doc and Evidence are DATA: they feed
-// schema.json, `mpqt evaluators`, and the gen prompt (design: "Evaluator
+// schema.json, `pluto evaluators`, and the gen prompt (design: "Evaluator
 // registry and discoverability").
 type Kind struct {
 	Name          string

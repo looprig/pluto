@@ -1,22 +1,22 @@
-// Package mpqttest wires an MPQT pack execution into ordinary go test, and
+// Package plutotest wires a Pluto pack execution into ordinary go test, and
 // gates a test on the derived qualification disposition. It runs no trial
 // loop of its own: each runnable table plan expands to exactly one
 // eval.Suite executed once via eval.Run. Execution itself lives in
 // pkg/run — this package is a thin go-test wrapper around run.Execute that
 // adds t.Fatalf-on-error and t.Logf-on-skip test ergonomics.
-package mpqttest
+package plutotest
 
 import (
 	"strings"
 	"testing"
 
 	"github.com/looprig/eval"
-	"github.com/looprig/mpqt/pkg/profile"
-	"github.com/looprig/mpqt/pkg/qual"
-	"github.com/looprig/mpqt/pkg/run"
+	"github.com/looprig/pluto/pkg/profile"
+	"github.com/looprig/pluto/pkg/qual"
+	"github.com/looprig/pluto/pkg/run"
 )
 
-// RunSpec is one full offline-or-live MPQT execution: a manifest, the packs
+// RunSpec is one full offline-or-live Pluto execution: a manifest, the packs
 // to plan against it, the target to observe, and how many trials to run each
 // scenario.
 type RunSpec struct {
@@ -34,7 +34,7 @@ type RunSpec struct {
 // instead of being executed. Run logs each skipped table's missing
 // capabilities via t.Logf, and t.Fatalf's on any error run.Execute returns —
 // a broken pack or manifest, or eval.Run's own preflight failure, is a bug in
-// the test setup, not a verdict to record. MPQT implements no trial loop of
+// the test setup, not a verdict to record. Pluto implements no trial loop of
 // its own — Trials passes straight through to eval.RunConfig.
 func Run(t *testing.T, spec RunSpec) qual.Scorecard {
 	t.Helper()
@@ -47,14 +47,14 @@ func Run(t *testing.T, spec RunSpec) qual.Scorecard {
 		Config:   eval.RunConfig{Trials: spec.Trials},
 	})
 	if err != nil {
-		t.Fatalf("mpqttest: run.Execute: %v", err)
+		t.Fatalf("plutotest: run.Execute: %v", err)
 	}
 	for _, plan := range res.Skipped {
 		missing := make([]string, 0, len(plan.Missing))
 		for _, m := range plan.Missing {
 			missing = append(missing, string(m))
 		}
-		t.Logf("mpqttest: skipping %s/%s: missing capabilities [%s]", plan.Pack, plan.Table, strings.Join(missing, ", "))
+		t.Logf("plutotest: skipping %s/%s: missing capabilities [%s]", plan.Pack, plan.Table, strings.Join(missing, ", "))
 	}
 	return res.Scorecard
 }
@@ -67,12 +67,12 @@ func Run(t *testing.T, spec RunSpec) qual.Scorecard {
 func RequireDisposition(t *testing.T, card qual.Scorecard, p profile.Profile, allowed ...profile.Disposition) {
 	t.Helper()
 	if len(allowed) == 0 {
-		t.Fatal("mpqttest: RequireDisposition requires at least one allowed disposition")
+		t.Fatal("plutotest: RequireDisposition requires at least one allowed disposition")
 		return
 	}
 	result, err := profile.Evaluate(card, p)
 	if err != nil {
-		t.Fatalf("mpqttest: profile.Evaluate: %v", err)
+		t.Fatalf("plutotest: profile.Evaluate: %v", err)
 	}
 	for _, d := range allowed {
 		if result.Disposition == d {
@@ -82,5 +82,5 @@ func RequireDisposition(t *testing.T, card qual.Scorecard, p profile.Profile, al
 	for _, rr := range result.Requirements {
 		t.Logf("requirement %+v -> %s", rr.Requirement, rr.Outcome)
 	}
-	t.Fatalf("mpqttest: disposition %s not in allowed %v", result.Disposition, allowed)
+	t.Fatalf("plutotest: disposition %s not in allowed %v", result.Disposition, allowed)
 }

@@ -1,6 +1,6 @@
-// Package run executes MPQT packs against a target and rolls the results up
+// Package run executes Pluto packs against a target and rolls the results up
 // into a qual.Scorecard. It is the shared execution core behind both
-// pkg/mpqttest (offline, go-test-driven runs) and the CLI (live runs against
+// pkg/plutotest (offline, go-test-driven runs) and the CLI (live runs against
 // a real inference client): both re-express their own Spec in terms of this
 // package's Execute and never re-implement the plan -> eval.Run -> scorecard
 // pipeline themselves.
@@ -21,8 +21,8 @@ import (
 	"github.com/looprig/eval"
 	inferenceeval "github.com/looprig/eval/target/inference"
 	"github.com/looprig/inference"
-	"github.com/looprig/mpqt/pkg/packfile"
-	"github.com/looprig/mpqt/pkg/qual"
+	"github.com/looprig/pluto/pkg/packfile"
+	"github.com/looprig/pluto/pkg/qual"
 )
 
 // Spec is one qualification execution. Target may be any eval.Target
@@ -47,7 +47,7 @@ type Spec struct {
 	// just before that table is executed or recorded as skipped. It is a UI
 	// hook for live per-table feedback during a long live run (a run of many
 	// tables against a real model emits nothing else until the final report);
-	// offline callers like mpqttest leave it nil. It must not mutate the plan.
+	// offline callers like plutotest leave it nil. It must not mutate the plan.
 	Progress func(qual.TablePlan)
 
 	// OnResult, if non-nil, is called once per RUNNABLE table immediately after
@@ -65,7 +65,7 @@ type Spec struct {
 	// through a worker pool — the throughput win for a corpus of many
 	// single-scenario tables, where eval's own per-sample Config.Concurrency
 	// cannot help. Per-provider request load is bounded independently by the
-	// caller's rate-limited client (mpqt's --max-concurrent-requests/--max-rpm).
+	// caller's rate-limited client (pluto's --max-concurrent-requests/--max-rpm).
 	TableConcurrency int
 }
 

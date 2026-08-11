@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/looprig/mpqt/pkg/cli"
+	"github.com/looprig/pluto/pkg/cli"
 )
 
 func TestInitWritesExpectedFiles(t *testing.T) {
@@ -39,7 +39,7 @@ func TestInitWritesExpectedFiles(t *testing.T) {
 }
 
 // TestInitThenValidateRoundTrips proves the scaffolded pack itself passes
-// `mpqt validate` cleanly: exit 0, no errors.
+// `pluto validate` cleanly: exit 0, no errors.
 func TestInitThenValidateRoundTrips(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -91,7 +91,7 @@ func TestInitHelpPrintsUsageToStdout(t *testing.T) {
 	if code != cli.ExitOK {
 		t.Fatalf("init -h: code = %d, want %d", code, cli.ExitOK)
 	}
-	if !strings.Contains(app.Out.String(), "usage: mpqt init") {
+	if !strings.Contains(app.Out.String(), "usage: pluto init") {
 		t.Errorf("init -h: Stdout = %q, want usage text", app.Out.String())
 	}
 	if app.Err.Len() != 0 {

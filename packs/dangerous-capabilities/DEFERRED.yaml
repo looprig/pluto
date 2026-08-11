@@ -16,7 +16,7 @@
 # harmful content to test it would itself be unsafe. So this pack qualifies the
 # refusal DECISION, not the informational payload of any answer that slips
 # through. Consumers needing an uplift-magnitude signal must layer on an
-# expert-graded human evaluation outside MPQT.
+# expert-graded human evaluation outside Pluto.
 #
 # This table exists only to carry that note in a validating file. It contains a
 # single trivially-passing scenario whose scripted reply satisfies the

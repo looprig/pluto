@@ -30,7 +30,7 @@ Define small interfaces at the package that consumes them when substitution, tes
 
 ## Repo layout (Phase 2: packfiles, generation, CLI)
 
-`pkg/` holds every llm-free package; `cmd/mpqt` is the sole composition root
+`pkg/` holds every llm-free package; `cmd/pluto` is the sole composition root
 allowed to import `github.com/looprig/llm`:
 
 - `pkg/qual` — the core domain: `Pack`, `Table`, `Manifest`, `Plan`, `Scorecard`.
@@ -42,7 +42,7 @@ allowed to import `github.com/looprig/llm`:
 - `pkg/compare` — candidate-vs-incumbent scorecard diff, rolled up per table.
 - `pkg/reportjson` — canonical, versioned, fail-closed JSON codec for a
   `Scorecard` (+ optional `profile.Result`).
-- `pkg/mpqttest` — wires a pack execution into ordinary `go test` and gates
+- `pkg/plutotest` — wires a pack execution into ordinary `go test` and gates
   on a disposition.
 - `pkg/packfile` — the YAML trust boundary: strict pack/table decoding,
   environment templates, the evaluator registry, directory loading, digests,
@@ -60,7 +60,7 @@ allowed to import `github.com/looprig/llm`:
   user decision, so Go-authored packs are a first-class, parallel mechanism
   to `pkg/packfile`'s YAML corpus (`packs/`), not a deprecated one.
 - `pkg/run` — target construction, pack execution, partial-result
-  preservation; the shared core behind both `mpqttest` and the CLI's `run`.
+  preservation; the shared core behind both `plutotest` and the CLI's `run`.
 - `pkg/pricing` — models.dev snapshot parsing, cost/token estimation,
   redirect-safe snapshot fetch; llm-free (takes a `Counter` interface).
 - `pkg/ratelimit` — an `inference.Client` decorator adding client-side rate
@@ -75,11 +75,11 @@ allowed to import `github.com/looprig/llm`:
 - `pkg/gen` — single-turn, structured-output scenario generation plus the
   mechanical validate/dedupe/append post-pass. Imports `gopkg.in/yaml.v3`
   directly for its `Append` step's comment-preserving `yaml.Node` surgery.
-- `pkg/cli` — every `mpqt` command's logic (`init`, `validate`, `schema`,
+- `pkg/cli` — every `pluto` command's logic (`init`, `validate`, `schema`,
   `evaluators`, `gen`, `run`, `compare`), parameterized over an injected
   `App` (client/counter constructors, registry, I/O). llm-free.
 
-**The `cmd/mpqt` nested-module rule.** `cmd/mpqt` is its own nested Go module
+**The `cmd/pluto` nested-module rule.** `cmd/pluto` is its own nested Go module
 (own `go.mod`) and is the **only** place anywhere in this repo that may
 import `github.com/looprig/llm` (via `llm/auto`, to construct a real
 `inference.Client`/`pricing.Counter`). Every package under `pkg/` takes an

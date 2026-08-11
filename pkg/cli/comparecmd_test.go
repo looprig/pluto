@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/looprig/mpqt/pkg/cli"
+	"github.com/looprig/pluto/pkg/cli"
 )
 
 const incumbentManifestYAML = `target-id: incumbent-1
@@ -18,7 +18,7 @@ endpoint-class: remote
 capabilities: []
 `
 
-// buildReport drives `mpqt run` end to end (via a fake client) to produce a
+// buildReport drives `pluto run` end to end (via a fake client) to produce a
 // real reportjson file at path, so compare tests exercise the actual wire
 // format two independent `run` invocations would have produced, not a
 // hand-built fixture.

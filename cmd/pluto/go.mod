@@ -1,4 +1,4 @@
-module github.com/looprig/mpqt/cmd/mpqt
+module github.com/looprig/pluto/cmd/pluto
 
 go 1.26.4
 
@@ -6,7 +6,7 @@ require (
 	github.com/looprig/core v0.5.1
 	github.com/looprig/inference v0.9.1
 	github.com/looprig/llm v0.13.2
-	github.com/looprig/mpqt v0.1.2
+	github.com/looprig/pluto v0.1.2
 )
 
 require (

@@ -10,8 +10,8 @@ import (
 	"github.com/looprig/inference"
 	"github.com/looprig/inference/model"
 	"github.com/looprig/inference/stream"
-	"github.com/looprig/mpqt/pkg/gen"
-	"github.com/looprig/mpqt/pkg/packfile"
+	"github.com/looprig/pluto/pkg/gen"
+	"github.com/looprig/pluto/pkg/packfile"
 	"gopkg.in/yaml.v3"
 )
 

@@ -1,4 +1,4 @@
-// Package capability is MPQT's core-capability qualification pack:
+// Package capability is Pluto's core-capability qualification pack:
 // instruction-following and known-answer cases that need no special target
 // capability, just plain text conversation. All evaluators are programmatic.
 //
@@ -12,7 +12,7 @@ import (
 	"github.com/looprig/core/content"
 	"github.com/looprig/eval"
 	"github.com/looprig/eval/exact"
-	"github.com/looprig/mpqt/pkg/qual"
+	"github.com/looprig/pluto/pkg/qual"
 )
 
 // Revision is the pack revision. Any semantic change to scenarios or

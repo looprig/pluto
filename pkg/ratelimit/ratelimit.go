@@ -5,9 +5,9 @@
 //
 // It is llm-free by design — it depends only on the inference interfaces the
 // root module already carries (via eval), so it sits in pkg/ and is wrapped
-// around whatever concrete client cmd/mpqt constructs, without pulling
+// around whatever concrete client cmd/pluto constructs, without pulling
 // github.com/looprig/llm into the root module graph. Both paid commands
-// (`mpqt run`, `mpqt gen`) route their target and judge clients through it.
+// (`pluto run`, `pluto gen`) route their target and judge clients through it.
 //
 // Limitation: providers signal a precise wait via the HTTP Retry-After
 // response header, but the inference transport does not surface response
@@ -123,7 +123,7 @@ func (c *client) Invoke(ctx context.Context, req inference.Request) (*inference.
 // the stream (a non-2xx on setup surfaces as a retryable APIError before any
 // chunk is read). The concurrency slot is held only around stream setup, not
 // across the caller's subsequent reads — MaxConcurrent bounds request
-// initiation, which is the Invoke-based path mpqt actually exercises.
+// initiation, which is the Invoke-based path Pluto actually exercises.
 func (c *client) Stream(ctx context.Context, req inference.Request) (*stream.StreamReader[content.Chunk], error) {
 	var reader *stream.StreamReader[content.Chunk]
 	err := c.withPolicy(ctx, func() error {

@@ -24,8 +24,6 @@ github.com/looprig/inference v0.9.1 h1:gohLEYHc/KEUpIF5VXwexLmPQ51s3SjKxdXxy0MhV
 github.com/looprig/inference v0.9.1/go.mod h1:zG3ZXQzVTFE3dUkeQUsV0u+9w8TWUZOow0nkZLF20Eo=
 github.com/looprig/llm v0.13.2 h1:zJyTilduA/bNVZ9RKRlcegNHMZMRBX1cvXnKEPfmHeY=
 github.com/looprig/llm v0.13.2/go.mod h1:lXG3a543P+8a8HTjZixwC96B264koOLcwL8F6RCFT/c=
-github.com/looprig/mpqt v0.1.2 h1:tVNZc6LtGA4WquNTLPP4V6p7SsCuP/QQmSKSZeWJFi8=
-github.com/looprig/mpqt v0.1.2/go.mod h1:OApd9zNU7ZJzpuayyfmNRI0VBuZ6XICYz0HEsrfR3Nw=
 github.com/looprig/secrets v0.1.0 h1:YmDlIGNuP3X1Nihjb4N23NIXKRxQzePjx7SBFDED1ps=
 github.com/looprig/secrets v0.1.0/go.mod h1:aENJw340bY5iNwOkanyYkp8i8R/X5DSiL6eKXfrbxKU=
 github.com/pkg/diff v0.0.0-20210226163009-20ebb0f2a09e/go.mod h1:pJLUxLENpZxwdsKMEsNbx1VGcRFpLqf3715MtcvvzbA=

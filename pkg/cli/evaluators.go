@@ -11,14 +11,14 @@ import (
 // cmdEvaluators prints one row per registered evaluator kind: its name, the
 // option names read from that kind's OptionsSchema properties, its evidence
 // requirement, and its doc string -- the vocabulary a pack author needs
-// (design: "mpqt evaluators is where a pack author learns the vocabulary").
+// (design: "pluto evaluators is where a pack author learns the vocabulary").
 func cmdEvaluators(app App, args []string) int {
 	fs := newFlagSet("evaluators", "evaluators")
 	if code, ok := parseFlags(app, fs, args); !ok {
 		return code
 	}
 	if len(fs.Args()) > 0 {
-		fmt.Fprintln(app.Stderr, "mpqt evaluators: unexpected arguments")
+		fmt.Fprintln(app.Stderr, "pluto evaluators: unexpected arguments")
 		fs.Usage()
 		return ExitUsage
 	}
@@ -28,7 +28,7 @@ func cmdEvaluators(app App, args []string) int {
 	for _, k := range app.Registry.Kinds() {
 		opts, err := optionNames(k.OptionsSchema)
 		if err != nil {
-			fmt.Fprintln(app.Stderr, "mpqt evaluators:", err)
+			fmt.Fprintln(app.Stderr, "pluto evaluators:", err)
 			return ExitCommandFailure
 		}
 		optStr := "-"
@@ -38,7 +38,7 @@ func cmdEvaluators(app App, args []string) int {
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", k.Name, optStr, k.Evidence, k.Doc)
 	}
 	if err := w.Flush(); err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt evaluators:", err)
+		fmt.Fprintln(app.Stderr, "pluto evaluators:", err)
 		return ExitCommandFailure
 	}
 	return ExitOK

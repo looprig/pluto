@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/looprig/mpqt/pkg/packfile"
+	"github.com/looprig/pluto/pkg/packfile"
 )
 
 // doNotDuplicateHeading introduces the existing-scenario-ID list so the model
@@ -25,7 +25,7 @@ func buildPrompt(doc *packfile.Document, tf packfile.TableFile, reg *packfile.Re
 
 	var b strings.Builder
 
-	b.WriteString("You are generating candidate test scenarios for the mpqt evaluation harness.\n")
+	b.WriteString("You are generating candidate test scenarios for the Pluto evaluation harness.\n")
 	b.WriteString("Respond with a JSON object matching the provided output schema; do not include any other text.\n\n")
 
 	fmt.Fprintf(&b, "Pack: %s\nTable: %s\nDimension: %s\n", doc.Pack.Pack, tf.Table, tf.Dimension)
@@ -52,7 +52,7 @@ func buildPrompt(doc *packfile.Document, tf packfile.TableFile, reg *packfile.Re
 		fmt.Fprintf(&b, "Target output schema contract %q:\n  schema: %s\n\n", envReq.Output.Name, string(envReq.Output.Schema))
 	}
 
-	b.WriteString("Evaluator kinds known to mpqt (name: doc -- evidence requirement):\n")
+	b.WriteString("Evaluator kinds known to Pluto (name: doc -- evidence requirement):\n")
 	for _, k := range reg.Kinds() {
 		fmt.Fprintf(&b, "- %s: %s -- evidence: %s\n", k.Name, k.Doc, k.Evidence)
 	}

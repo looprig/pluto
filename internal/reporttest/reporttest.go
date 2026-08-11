@@ -1,5 +1,5 @@
 // Package reporttest builds minimal, valid eval.Report fixtures shared by
-// MPQT's own test suites. It is test-only support code, never imported by
+// Pluto's own test suites. It is test-only support code, never imported by
 // production packages.
 package reporttest
 

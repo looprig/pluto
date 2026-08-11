@@ -9,12 +9,12 @@ import (
 	"github.com/looprig/eval"
 	"github.com/looprig/inference"
 	"github.com/looprig/inference/model"
-	"github.com/looprig/mpqt/pkg/packfile"
-	"github.com/looprig/mpqt/pkg/pricing"
-	"github.com/looprig/mpqt/pkg/profile"
-	"github.com/looprig/mpqt/pkg/qual"
-	"github.com/looprig/mpqt/pkg/reportjson"
-	"github.com/looprig/mpqt/pkg/run"
+	"github.com/looprig/pluto/pkg/packfile"
+	"github.com/looprig/pluto/pkg/pricing"
+	"github.com/looprig/pluto/pkg/profile"
+	"github.com/looprig/pluto/pkg/qual"
+	"github.com/looprig/pluto/pkg/reportjson"
+	"github.com/looprig/pluto/pkg/run"
 )
 
 // cmdRun loads a manifest and profile, builds every named pack (surfacing
@@ -33,7 +33,7 @@ func cmdRun(app App, args []string) int {
 	configPath := fs.String("config", "", "judge LLM config YAML (required only if a pack uses a judge evaluator)")
 	trials := fs.Int("trials", 0, "trials per scenario (0 = eval default of 1)")
 	concurrency := fs.Int("concurrency", 0, "run up to N tables in parallel (0/1 = sequential); provider load stays bounded by --max-concurrent-requests")
-	out := fs.String("out", "mpqt-report.json", "reportjson output path")
+	out := fs.String("out", "pluto-report.json", "reportjson output path")
 	pf := registerPricingFlags(fs)
 	rf := registerRateLimitFlags(fs)
 	verbose := verboseFlag(fs)
@@ -49,24 +49,24 @@ func cmdRun(app App, args []string) int {
 	app.RateLimit = rf.config()
 
 	if *manifestPath == "" || *profilePath == "" || len(packDirs) == 0 {
-		fmt.Fprintln(app.Stderr, "mpqt run: --manifest, --profile, and at least one --packs are required")
+		fmt.Fprintln(app.Stderr, "pluto run: --manifest, --profile, and at least one --packs are required")
 		fs.Usage()
 		return ExitUsage
 	}
 	requireDisp := profile.Disposition(*require)
 	if requireDisp.Rank() < 0 {
-		fmt.Fprintf(app.Stderr, "mpqt run: --require %q is not a known disposition\n", *require)
+		fmt.Fprintf(app.Stderr, "pluto run: --require %q is not a known disposition\n", *require)
 		return ExitUsage
 	}
 
 	manifest, err := decodeManifestFile(*manifestPath)
 	if err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt run:", err)
+		fmt.Fprintln(app.Stderr, "pluto run:", err)
 		return ExitCommandFailure
 	}
 	prof, err := decodeProfileFile(*profilePath)
 	if err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt run:", err)
+		fmt.Fprintln(app.Stderr, "pluto run:", err)
 		return ExitCommandFailure
 	}
 
@@ -78,14 +78,14 @@ func cmdRun(app App, args []string) int {
 	if *configPath != "" {
 		cfg, err := loadLLMConfig(*configPath)
 		if err != nil {
-			fmt.Fprintln(app.Stderr, "mpqt run: load config:", err)
+			fmt.Fprintln(app.Stderr, "pluto run: load config:", err)
 			return ExitCommandFailure
 		}
 		judgeModel = cfg.toModel()
 		noteMissingKey(u, app, judgeModel.Provider)
 		judgeClient, err = app.client(judgeModel)
 		if err != nil {
-			fmt.Fprintln(app.Stderr, "mpqt run:", err)
+			fmt.Fprintln(app.Stderr, "pluto run:", err)
 			return ExitCommandFailure
 		}
 	}
@@ -99,15 +99,15 @@ func cmdRun(app App, args []string) int {
 	for _, dir := range packDirs {
 		doc, err := packfile.LoadDir(dir)
 		if err != nil {
-			fmt.Fprintln(app.Stderr, "mpqt run:", err)
+			fmt.Fprintln(app.Stderr, "pluto run:", err)
 			return ExitCommandFailure
 		}
 		pack, err := doc.Build(app.Registry, bc)
 		if err != nil {
 			if errors.Is(err, packfile.ErrJudgeUnconfigured) {
-				fmt.Fprintf(app.Stderr, "mpqt run: %s: %v (supply --config with a judge llm block)\n", dir, err)
+				fmt.Fprintf(app.Stderr, "pluto run: %s: %v (supply --config with a judge llm block)\n", dir, err)
 			} else {
-				fmt.Fprintf(app.Stderr, "mpqt run: %s: %v\n", dir, err)
+				fmt.Fprintf(app.Stderr, "pluto run: %s: %v\n", dir, err)
 			}
 			return ExitCommandFailure
 		}
@@ -118,7 +118,7 @@ func cmdRun(app App, args []string) int {
 	noteMissingKey(u, app, targetModel.Provider)
 	targetClient, err := app.client(targetModel)
 	if err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt run:", err)
+		fmt.Fprintln(app.Stderr, "pluto run:", err)
 		return ExitCommandFailure
 	}
 
@@ -133,12 +133,12 @@ func cmdRun(app App, args []string) int {
 		}
 		plans, err := qual.Plan(lp.pack, manifest)
 		if err != nil {
-			fmt.Fprintln(app.Stderr, "mpqt run:", err)
+			fmt.Fprintln(app.Stderr, "pluto run:", err)
 			return ExitCommandFailure
 		}
 		allPlans = append(allPlans, plans...)
 		if err := addTemplates(templates, envs, plans, targetModel, judgeModel); err != nil {
-			fmt.Fprintln(app.Stderr, "mpqt run:", err)
+			fmt.Fprintln(app.Stderr, "pluto run:", err)
 			return ExitCommandFailure
 		}
 	}
@@ -149,14 +149,14 @@ func cmdRun(app App, args []string) int {
 	if !pf.skipCostEstimate {
 		snap, err := loadSnapshot(ctx, app, pf.pricingSnapshot)
 		if err != nil {
-			fmt.Fprintln(app.Stderr, "mpqt run: preflight:", err)
+			fmt.Fprintln(app.Stderr, "pluto run: preflight:", err)
 			return ExitCommandFailure
 		}
 		rates := ratesFor(snap, string(targetModel.Provider), targetModel.Name)
 		counter := app.counterForPreflight(targetModel, u.detailW())
 		plan, err := pricing.Preflight(ctx, allPlans, cfg, rates, counter, templates)
 		if err != nil {
-			fmt.Fprintln(app.Stderr, "mpqt run: preflight:", err)
+			fmt.Fprintln(app.Stderr, "pluto run: preflight:", err)
 			return ExitCommandFailure
 		}
 		renderPreflight(u, plan)
@@ -206,7 +206,7 @@ func cmdRun(app App, args []string) int {
 		}
 	}
 	if err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt run: execute:", err)
+		fmt.Fprintln(app.Stderr, "pluto run: execute:", err)
 		if len(res.Scorecard.Results) > 0 {
 			if encoded, encErr := reportjson.Encode(res.Scorecard, nil); encErr == nil {
 				if writeErr := os.WriteFile(*out, encoded, 0o600); writeErr == nil {
@@ -219,17 +219,17 @@ func cmdRun(app App, args []string) int {
 
 	result, err := profile.Evaluate(res.Scorecard, prof)
 	if err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt run: evaluate profile:", err)
+		fmt.Fprintln(app.Stderr, "pluto run: evaluate profile:", err)
 		return ExitCommandFailure
 	}
 
 	encoded, err := reportjson.Encode(res.Scorecard, &result)
 	if err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt run: encode report:", err)
+		fmt.Fprintln(app.Stderr, "pluto run: encode report:", err)
 		return ExitCommandFailure
 	}
 	if err := os.WriteFile(*out, encoded, 0o600); err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt run: write report:", err)
+		fmt.Fprintln(app.Stderr, "pluto run: write report:", err)
 		return ExitCommandFailure
 	}
 

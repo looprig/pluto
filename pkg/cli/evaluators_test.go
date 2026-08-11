@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/looprig/mpqt/pkg/cli"
-	"github.com/looprig/mpqt/pkg/packfile"
+	"github.com/looprig/pluto/pkg/cli"
+	"github.com/looprig/pluto/pkg/packfile"
 )
 
 func TestEvaluatorsListsEveryBuiltinKind(t *testing.T) {

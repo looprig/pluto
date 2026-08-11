@@ -1,4 +1,4 @@
-// Package structuredoutput is MPQT's structured-output qualification pack:
+// Package structuredoutput is Pluto's structured-output qualification pack:
 // can the target produce schema-conformant output across shapes, and does it
 // fail cleanly when it cannot. All evaluators are programmatic.
 package structuredoutput
@@ -7,7 +7,7 @@ import (
 	"github.com/looprig/core/content"
 	"github.com/looprig/eval"
 	"github.com/looprig/eval/exact"
-	"github.com/looprig/mpqt/pkg/qual"
+	"github.com/looprig/pluto/pkg/qual"
 )
 
 // Revision is the pack revision. Any semantic change to scenarios or

@@ -1,15 +1,15 @@
-package mpqttest_test
+package plutotest_test
 
 import (
 	"reflect"
 	"testing"
 
 	"github.com/looprig/eval"
-	"github.com/looprig/mpqt/pkg/codepacks/structuredoutput"
-	"github.com/looprig/mpqt/pkg/mpqttest"
-	"github.com/looprig/mpqt/pkg/profile"
-	"github.com/looprig/mpqt/pkg/qual"
-	fixtarget "github.com/looprig/mpqt/pkg/qual/target"
+	"github.com/looprig/pluto/pkg/codepacks/structuredoutput"
+	"github.com/looprig/pluto/pkg/plutotest"
+	"github.com/looprig/pluto/pkg/profile"
+	"github.com/looprig/pluto/pkg/qual"
+	fixtarget "github.com/looprig/pluto/pkg/qual/target"
 )
 
 func testManifest() qual.Manifest {
@@ -71,18 +71,18 @@ func requirementProfile(minScore float64) profile.Profile {
 func TestRun_ConformingTargetQualifies(t *testing.T) {
 	t.Parallel()
 	pack := structuredoutput.V1()
-	card := mpqttest.Run(t, mpqttest.RunSpec{
+	card := plutotest.Run(t, plutotest.RunSpec{
 		Manifest: testManifest(),
 		Packs:    []qual.Pack{pack},
 		Target:   fixtarget.NewScripted("offline-test", conformingScripts(pack)),
 	})
-	mpqttest.RequireDisposition(t, card, requirementProfile(90), profile.Qualified)
+	plutotest.RequireDisposition(t, card, requirementProfile(90), profile.Qualified)
 }
 
 func TestRun_DeviantTargetTripsMinScore(t *testing.T) {
 	t.Parallel()
 	pack := structuredoutput.V1()
-	card := mpqttest.Run(t, mpqttest.RunSpec{
+	card := plutotest.Run(t, plutotest.RunSpec{
 		Manifest: testManifest(),
 		Packs:    []qual.Pack{pack},
 		Target:   fixtarget.NewScripted("offline-test", deviantScripts(pack)),
@@ -104,7 +104,7 @@ func TestRun_TrialsMultipliesSamples(t *testing.T) {
 	t.Parallel()
 	pack := structuredoutput.V1()
 	const trials = 3
-	card := mpqttest.Run(t, mpqttest.RunSpec{
+	card := plutotest.Run(t, plutotest.RunSpec{
 		Manifest: testManifest(),
 		Packs:    []qual.Pack{pack},
 		Target:   fixtarget.NewScripted("offline-test", conformingScripts(pack)),
@@ -135,7 +135,7 @@ func TestRun_SkippedTableRecordsMissingCapability(t *testing.T) {
 	// is fine: a call to Observe for an unscripted scenario would itself fail
 	// the test via UnscriptedScenarioError, which is exactly the guard that
 	// proves the skip really did skip execution.
-	card := mpqttest.Run(t, mpqttest.RunSpec{
+	card := plutotest.Run(t, plutotest.RunSpec{
 		Manifest: manifest,
 		Packs:    []qual.Pack{pack},
 		Target:   fixtarget.NewScripted("offline-test", nil),

@@ -6,8 +6,8 @@ import (
 
 	"github.com/looprig/eval"
 	"github.com/looprig/eval/evaltest"
-	"github.com/looprig/mpqt/pkg/qual"
-	fixtarget "github.com/looprig/mpqt/pkg/qual/target"
+	"github.com/looprig/pluto/pkg/qual"
+	fixtarget "github.com/looprig/pluto/pkg/qual/target"
 )
 
 func TestPackV1Valid(t *testing.T) {

@@ -11,7 +11,7 @@ import (
 
 	"github.com/looprig/eval"
 	"github.com/looprig/eval/rubric"
-	"github.com/looprig/mpqt/pkg/qual"
+	"github.com/looprig/pluto/pkg/qual"
 )
 
 // packFileName is the fixed name of a pack's identity file within its
@@ -20,7 +20,7 @@ const packFileName = "pack.yaml"
 
 // Document is a loaded, structurally validated pack: raw file bytes retained
 // for digesting, decoded files for building. It contains no evaluators and
-// needs no clients -- `mpqt validate` stops here.
+// needs no clients -- `pluto validate` stops here.
 type Document struct {
 	Dir    string
 	Pack   PackFile
@@ -237,7 +237,7 @@ func (d *Document) Lint() []string {
 	for _, tf := range d.Tables {
 		if tf.Run.isSet() {
 			findings = append(findings, fmt.Sprintf(
-				"table %q: run: block is decoded but not yet consumed by mpqt run (per-table trials/concurrency/timeouts have no effect; use the CLI's global --trials/--concurrency flags instead)",
+				"table %q: run: block is decoded but not yet consumed by pluto run (per-table trials/concurrency/timeouts have no effect; use the CLI's global --trials/--concurrency flags instead)",
 				tf.Table))
 		}
 

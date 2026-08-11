@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/looprig/mpqt/pkg/compare"
-	"github.com/looprig/mpqt/pkg/qual"
-	"github.com/looprig/mpqt/pkg/reportjson"
+	"github.com/looprig/pluto/pkg/compare"
+	"github.com/looprig/pluto/pkg/qual"
+	"github.com/looprig/pluto/pkg/reportjson"
 )
 
 // cmdCompare decodes two reportjson.Encode-produced files and rolls their
@@ -24,25 +24,25 @@ func cmdCompare(app App, args []string) int {
 	u := newUI(app.Stdout, app.LookupEnv, *verbose)
 
 	if *candidatePath == "" || *incumbentPath == "" {
-		fmt.Fprintln(app.Stderr, "mpqt compare: --candidate and --incumbent are required")
+		fmt.Fprintln(app.Stderr, "pluto compare: --candidate and --incumbent are required")
 		fs.Usage()
 		return ExitUsage
 	}
 
 	candidate, err := decodeReport(*candidatePath)
 	if err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt compare:", err)
+		fmt.Fprintln(app.Stderr, "pluto compare:", err)
 		return ExitCommandFailure
 	}
 	incumbent, err := decodeReport(*incumbentPath)
 	if err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt compare:", err)
+		fmt.Fprintln(app.Stderr, "pluto compare:", err)
 		return ExitCommandFailure
 	}
 
 	cmp, err := compare.Compare(scorecardFromDecoded(candidate), scorecardFromDecoded(incumbent))
 	if err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt compare:", err)
+		fmt.Fprintln(app.Stderr, "pluto compare:", err)
 		return ExitCommandFailure
 	}
 

@@ -12,8 +12,8 @@ import (
 	"github.com/looprig/inference"
 	"github.com/looprig/inference/model"
 	"github.com/looprig/inference/stream"
-	"github.com/looprig/mpqt/pkg/cli"
-	"github.com/looprig/mpqt/pkg/pricing"
+	"github.com/looprig/pluto/pkg/cli"
+	"github.com/looprig/pluto/pkg/pricing"
 )
 
 // --- shared test fixtures used across every *_test.go file in this package ---
@@ -214,7 +214,7 @@ func TestAppZeroValueRunsNonLLMCommands(t *testing.T) {
 		if code := cli.Main([]string{"schema"}, app.App); code != cli.ExitOK {
 			t.Fatalf("schema: code = %d, stderr = %s", code, app.Err.String())
 		}
-		if !strings.Contains(app.Out.String(), `"pack.yaml"`) && !strings.Contains(app.Out.String(), "mpqt pack file") {
+		if !strings.Contains(app.Out.String(), `"pack.yaml"`) && !strings.Contains(app.Out.String(), "Pluto pack file") {
 			t.Errorf("schema: Stdout doesn't look like a JSON Schema: %s", app.Out.String())
 		}
 	})

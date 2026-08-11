@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/looprig/eval"
-	"github.com/looprig/mpqt/pkg/packfile"
-	"github.com/looprig/mpqt/pkg/qual"
-	fixtarget "github.com/looprig/mpqt/pkg/qual/target"
-	"github.com/looprig/mpqt/pkg/run"
+	"github.com/looprig/pluto/pkg/packfile"
+	"github.com/looprig/pluto/pkg/qual"
+	fixtarget "github.com/looprig/pluto/pkg/qual/target"
+	"github.com/looprig/pluto/pkg/run"
 )
 
 // digestLockfileName is pack.digest's fixed filename within a pack directory.
@@ -43,11 +43,11 @@ func cmdValidate(app App, args []string) int {
 
 	dirs, err := packDirsFromArgs(fs.Args())
 	if err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt validate:", err)
+		fmt.Fprintln(app.Stderr, "pluto validate:", err)
 		return ExitCommandFailure
 	}
 	if len(dirs) == 0 {
-		fmt.Fprintln(app.Stderr, "mpqt validate: no pack directories found (looked for pack.yaml under .)")
+		fmt.Fprintln(app.Stderr, "pluto validate: no pack directories found (looked for pack.yaml under .)")
 		return ExitCommandFailure
 	}
 
@@ -117,7 +117,7 @@ func validateOne(u *ui, app App, dir string, execute, writeDigests bool) bool {
 
 // checkDigest verifies dir's committed pack.digest lockfile against doc's own
 // digest, when a lockfile is present. A freshly scaffolded pack (e.g. one
-// `mpqt init` just wrote) has no lockfile yet -- that is reported as an
+// `pluto init` just wrote) has no lockfile yet -- that is reported as an
 // informational note, never a failure, since init never writes one.
 func checkDigest(u *ui, dir string, doc *packfile.Document) bool {
 	// #nosec G304 -- dir is an operator-supplied (or self-discovered under
@@ -142,7 +142,7 @@ func checkDigest(u *ui, dir string, doc *packfile.Document) bool {
 
 // writeDigest (re)writes dir's pack.digest lockfile from doc's current
 // contents and revision. It is the maintainer-side counterpart to checkDigest:
-// after a deliberate scenario/evaluator change and revision bump, `mpqt
+// after a deliberate scenario/evaluator change and revision bump, `pluto
 // validate --write-digests packs/...` regenerates every lockfile so the
 // committed digests track the corpus. Writing is reported so a CI run that
 // accidentally passes the flag is visible in its log.
@@ -221,7 +221,7 @@ func executePack(ctx context.Context, u *ui, app App, dir string, doc *packfile.
 	manifest := executeManifest(unionCapabilities(pack))
 	target := fixtarget.NewScripted(dir, scripts)
 
-	// Same live viewport as `mpqt run`, so the offline smoke run shows each
+	// Same live viewport as `pluto run`, so the offline smoke run shows each
 	// table completing (animated on a terminal, plain lines off one).
 	vp := newViewport(app.Stdout, app.LookupEnv, len(offline.Tables))
 	res, err := run.Execute(ctx, run.Spec{

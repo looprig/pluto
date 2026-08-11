@@ -9,7 +9,7 @@ import (
 	"github.com/looprig/inference"
 	"github.com/looprig/inference/model"
 	"github.com/looprig/inference/stream"
-	"github.com/looprig/mpqt/pkg/ratelimit"
+	"github.com/looprig/pluto/pkg/ratelimit"
 )
 
 // wiringFakeClient is a bare inference.Client used only to assert identity

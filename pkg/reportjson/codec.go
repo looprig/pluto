@@ -1,4 +1,4 @@
-// Package reportjson is MPQT's canonical, versioned JSON codec for a
+// Package reportjson is Pluto's canonical, versioned JSON codec for a
 // Scorecard plus an optional profile.Result. It embeds each table's raw
 // eval.Report as the bytes produced by eval's own reportjson.Encode — already
 // redacted and canonical — so this codec adds no additional lossiness of its
@@ -14,14 +14,14 @@ import (
 
 	"github.com/looprig/eval"
 	evalreportjson "github.com/looprig/eval/reportjson"
-	"github.com/looprig/mpqt/pkg/profile"
-	"github.com/looprig/mpqt/pkg/qual"
+	"github.com/looprig/pluto/pkg/profile"
+	"github.com/looprig/pluto/pkg/qual"
 )
 
 // Version is the sole wire version this codec implements. It is read FIRST
 // from every document; an unknown or missing version is rejected before the
 // payload is trusted (fail-closed).
-const Version = "mpqt-report/v1"
+const Version = "pluto-report/v1"
 
 // MaxReportBytes bounds a document at the untrusted decode boundary, mirroring
 // eval/reportjson.MaxReportBytes.
@@ -146,7 +146,7 @@ type DecodedTable struct {
 // --- encode --------------------------------------------------------------
 
 // Encode serializes card and the optional profile result to the canonical
-// mpqt-report/v1 wire form. It validates card.Manifest first, so a
+// pluto-report/v1 wire form. It validates card.Manifest first, so a
 // structurally invalid manifest is rejected before any encoding work happens,
 // then computes the dimension scores and status rollup (each of which itself
 // fails on an empty Scorecard), then embeds each non-skipped table's raw
@@ -292,7 +292,7 @@ func projectProfileResult(r profile.Result) *profileResultJSON {
 
 // --- decode --------------------------------------------------------------
 
-// Decode reads an mpqt-report/v1 document. It is the untrusted boundary:
+// Decode reads a pluto-report/v1 document. It is the untrusted boundary:
 // enforced in order, the size bound, valid UTF-8, exactly one JSON value (no
 // trailing data), strict envelope decoding (no unknown fields), a known
 // version, strict payload decoding (no unknown fields), and finally domain

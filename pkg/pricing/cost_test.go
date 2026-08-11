@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/looprig/mpqt/pkg/pricing"
+	"github.com/looprig/pluto/pkg/pricing"
 )
 
 func f64(v float64) *float64 { return &v }

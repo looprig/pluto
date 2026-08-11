@@ -33,7 +33,7 @@ func (r ModelRole) Validate() error {
 	return &ValidationError{Field: "ModelRole", Reason: "unknown value"}
 }
 
-// EndpointClass records where the target executes, which bounds what MPQT can
+// EndpointClass records where the target executes, which bounds what Pluto can
 // claim to have observed. There is no valid zero value.
 type EndpointClass string
 
@@ -78,7 +78,7 @@ func (c Capability) Validate() error {
 
 // Manifest is the secret-free identity of one model configuration under test.
 // It deliberately has no credential field: authentication is resolved outside
-// MPQT and never becomes part of a report. Fingerprint gives the manifest a
+// Pluto and never becomes part of a report. Fingerprint gives the manifest a
 // stable reproducibility identity.
 type Manifest struct {
 	TargetID      string
@@ -209,7 +209,7 @@ func (m Manifest) Fingerprint() (string, error) {
 	return "sha256:" + hex.EncodeToString(sum[:]), nil
 }
 
-// ValidationError reports a structurally invalid MPQT value. Following eval's
+// ValidationError reports a structurally invalid Pluto value. Following eval's
 // convention, it names the field and reason but never echoes the offending
 // value.
 type ValidationError struct {
@@ -218,5 +218,5 @@ type ValidationError struct {
 }
 
 func (e *ValidationError) Error() string {
-	return "mpqt: invalid " + e.Field + ": " + e.Reason
+	return "pluto: invalid " + e.Field + ": " + e.Reason
 }

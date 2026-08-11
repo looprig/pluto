@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/looprig/eval"
-	"github.com/looprig/mpqt/internal/reporttest"
-	"github.com/looprig/mpqt/pkg/profile"
-	"github.com/looprig/mpqt/pkg/qual"
+	"github.com/looprig/pluto/internal/reporttest"
+	"github.com/looprig/pluto/pkg/profile"
+	"github.com/looprig/pluto/pkg/qual"
 )
 
 func testManifest() qual.Manifest {
@@ -225,7 +225,7 @@ func TestEncode_InvalidManifestRejected(t *testing.T) {
 func TestDecode_UnknownVersion(t *testing.T) {
 	t.Parallel()
 	env := map[string]json.RawMessage{
-		"version": json.RawMessage(`"mpqt-report/v99"`),
+		"version": json.RawMessage(`"pluto-report/v99"`),
 		"report":  json.RawMessage(`{}`),
 	}
 	data, err := json.Marshal(env)

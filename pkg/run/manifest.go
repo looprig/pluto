@@ -5,9 +5,9 @@ import (
 
 	"github.com/looprig/eval"
 	"github.com/looprig/inference/model"
-	"github.com/looprig/mpqt/pkg/packfile"
-	"github.com/looprig/mpqt/pkg/profile"
-	"github.com/looprig/mpqt/pkg/qual"
+	"github.com/looprig/pluto/pkg/packfile"
+	"github.com/looprig/pluto/pkg/profile"
+	"github.com/looprig/pluto/pkg/qual"
 )
 
 // ManifestModel maps a secret-free qual.Manifest onto the inference module's

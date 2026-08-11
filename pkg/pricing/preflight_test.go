@@ -13,8 +13,8 @@ import (
 	"github.com/looprig/eval/rubric"
 	"github.com/looprig/inference"
 	"github.com/looprig/inference/model"
-	"github.com/looprig/mpqt/pkg/pricing"
-	"github.com/looprig/mpqt/pkg/qual"
+	"github.com/looprig/pluto/pkg/pricing"
+	"github.com/looprig/pluto/pkg/qual"
 )
 
 func userMsg(text string) content.Conversation {

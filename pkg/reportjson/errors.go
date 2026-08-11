@@ -34,9 +34,9 @@ type UnknownVersionError struct {
 
 func (e *UnknownVersionError) Error() string {
 	if e.Version == "" {
-		return "mpqt/reportjson: unknown or missing report version"
+		return "pluto/reportjson: unknown or missing report version"
 	}
-	return "mpqt/reportjson: unknown report version " + strconv.Quote(e.Version)
+	return "pluto/reportjson: unknown report version " + strconv.Quote(e.Version)
 }
 
 // ReportTooLargeError reports that a document exceeded MaxReportBytes. Only
@@ -47,19 +47,19 @@ type ReportTooLargeError struct {
 }
 
 func (e *ReportTooLargeError) Error() string {
-	return "mpqt/reportjson: report of " + strconv.Itoa(e.Size) +
+	return "pluto/reportjson: report of " + strconv.Itoa(e.Size) +
 		" bytes exceeds max " + strconv.Itoa(e.Max)
 }
 
 // MalformedReportError reports that the bytes were not exactly one well-formed
-// mpqt-report/v1 document. Reason is drawn only from the fixed vocabulary
+// pluto-report/v1 document. Reason is drawn only from the fixed vocabulary
 // above, so no untrusted content leaks.
 type MalformedReportError struct {
 	Reason string
 }
 
 func (e *MalformedReportError) Error() string {
-	return "mpqt/reportjson: malformed report: " + e.Reason
+	return "pluto/reportjson: malformed report: " + e.Reason
 }
 
 // InvalidReportError reports that a decoded document was well-formed JSON but
@@ -70,7 +70,7 @@ type InvalidReportError struct {
 }
 
 func (e *InvalidReportError) Error() string {
-	return "mpqt/reportjson: invalid report: " + e.Cause.Error()
+	return "pluto/reportjson: invalid report: " + e.Cause.Error()
 }
 
 func (e *InvalidReportError) Unwrap() error { return e.Cause }
@@ -81,7 +81,7 @@ type EncodeError struct {
 	Cause error
 }
 
-func (e *EncodeError) Error() string { return "mpqt/reportjson: cannot encode report" }
+func (e *EncodeError) Error() string { return "pluto/reportjson: cannot encode report" }
 
 func (e *EncodeError) Unwrap() error { return e.Cause }
 

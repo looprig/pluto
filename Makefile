@@ -2,22 +2,22 @@
 
 GO ?= go
 
-# The CLI binary. cmd/mpqt is a nested Go module (its own go.mod) and the only
+# The CLI binary. cmd/pluto is a nested Go module (its own go.mod) and the only
 # place that imports github.com/looprig/llm, so it is built with GOWORK=off
 # from inside its own directory; the output path below is repo-root-relative.
-BIN = cmd/mpqt/mpqt
+BIN = cmd/pluto/pluto
 
 # Module's own package dirs. go list stops at the nested module boundary
-# (cmd/mpqt has its own go.mod), so it is never touched by these targets.
+# (cmd/pluto has its own go.mod), so it is never touched by these targets.
 GO_DIRS = $(shell go list -f '{{.Dir}}' ./...)
 
 test:
 	go test -race ./...
 
-# Build the mpqt CLI binary (CGO off + -trimpath per repo policy). The result
-# is $(BIN); add cmd/mpqt to PATH, or invoke it as ./$(BIN), or use `make run`.
+# Build the Pluto CLI binary (CGO off + -trimpath per repo policy). The result
+# is $(BIN); add cmd/pluto to PATH, or invoke it as ./$(BIN), or use `make run`.
 build:
-	cd cmd/mpqt && CGO_ENABLED=0 GOWORK=off $(GO) build -trimpath -o mpqt .
+	cd cmd/pluto && CGO_ENABLED=0 GOWORK=off $(GO) build -trimpath -o pluto .
 
 # Run a qualification against a live target. Override any variable on the
 # command line, e.g.:

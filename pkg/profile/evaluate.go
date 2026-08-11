@@ -2,7 +2,7 @@ package profile
 
 import (
 	"github.com/looprig/eval"
-	"github.com/looprig/mpqt/pkg/qual"
+	"github.com/looprig/pluto/pkg/qual"
 )
 
 // Card is the read-only view of a scorecard that profile evaluation consumes.

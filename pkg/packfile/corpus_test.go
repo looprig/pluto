@@ -18,7 +18,7 @@ func corpusDir(t *testing.T) string {
 }
 
 // shippedPackDirs returns every immediate subdirectory of packs/ that holds a
-// pack.yaml -- the shipped corpus the CLI ships and `mpqt validate` checks.
+// pack.yaml -- the shipped corpus the CLI ships and `pluto validate` checks.
 func shippedPackDirs(t *testing.T) []string {
 	t.Helper()
 	root := corpusDir(t)
@@ -48,7 +48,7 @@ func shippedPackDirs(t *testing.T) []string {
 // too, via a fake judge client), pass qual validation, and match its committed
 // pack.digest lockfile. Any drift in pkg/packfile that would break a shipped
 // pack -- or an uncommitted edit to a pack that was not followed by
-// `mpqt validate --write-digests` and a revision bump -- fails here rather than
+// `pluto validate --write-digests` and a revision bump -- fails here rather than
 // silently rotting until a live run. It replaces the single-example test the
 // deleted packs/example pack used to anchor.
 func TestShippedCorpusLoadsBuildsAndDigestsMatch(t *testing.T) {
@@ -91,7 +91,7 @@ func TestShippedCorpusLoadsBuildsAndDigestsMatch(t *testing.T) {
 				t.Fatalf("read %s pack.digest: %v", dir, err)
 			}
 			if err := VerifyDigest(doc, lock); err != nil {
-				t.Fatalf("VerifyDigest(%s): %v (run `mpqt validate --write-digests %s` after a deliberate change + revision bump)", dir, err, dir)
+				t.Fatalf("VerifyDigest(%s): %v (run `pluto validate --write-digests %s` after a deliberate change + revision bump)", dir, err, dir)
 			}
 		})
 	}

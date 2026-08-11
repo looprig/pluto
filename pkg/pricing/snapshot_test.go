@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/looprig/mpqt/pkg/pricing"
+	"github.com/looprig/pluto/pkg/pricing"
 )
 
 // realisticFixture is a models.dev-shaped fragment: an object keyed by

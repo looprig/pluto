@@ -64,7 +64,7 @@ func (u *ui) paint(code, s string) string {
 
 // title prints the command banner: a bold tag plus an optional dim subtitle.
 func (u *ui) title(cmd, subtitle string) {
-	tag := u.paint(ansiBold+ansiCyan, "mpqt "+cmd)
+	tag := u.paint(ansiBold+ansiCyan, "pluto "+cmd)
 	if subtitle == "" {
 		fmt.Fprintf(u.w, "\n%s\n", tag)
 		return

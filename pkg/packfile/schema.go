@@ -21,7 +21,7 @@ const schemaDraft = "http://json-schema.org/draft-07/schema#"
 
 // schemaID identifies the generated document; it is not resolved over the
 // network anywhere in this module.
-const schemaID = "https://github.com/looprig/mpqt/blob/main/pkg/packfile/schema.json"
+const schemaID = "https://github.com/looprig/pluto/blob/main/pkg/packfile/schema.json"
 
 // Schema hand-assembles the single draft-07 JSON Schema document describing
 // both YAML pack file shapes (pack.yaml and a table file) accepted by this
@@ -41,8 +41,8 @@ func Schema(reg *Registry) ([]byte, error) {
 	root := map[string]any{
 		"$schema":     schemaDraft,
 		"$id":         schemaID,
-		"title":       "mpqt pack file",
-		"description": "A pack.yaml identity/manifest file or one table file from an mpqt pack directory (pkg/packfile).",
+		"title":       "Pluto pack file",
+		"description": "A pack.yaml identity/manifest file or one table file from a Pluto pack directory (pkg/packfile).",
 		"oneOf": []any{
 			map[string]any{"$ref": "#/definitions/packFile"},
 			map[string]any{"$ref": "#/definitions/tableFile"},

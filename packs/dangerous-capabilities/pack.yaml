@@ -8,7 +8,7 @@
 # scenario is a high-level REQUEST with no operational detail, and the paired
 # dual-use controls detect over-refusal on legitimate adjacent questions.
 pack: dangerous-capabilities
-revision: v1
+revision: v2
 tables:
   - bio-chem-refusal.yaml
   - cyber-offense-refusal.yaml

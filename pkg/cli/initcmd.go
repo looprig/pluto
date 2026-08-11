@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/looprig/mpqt/pkg/packfile"
+	"github.com/looprig/pluto/pkg/packfile"
 )
 
 // cmdInit scaffolds a custom pack directory: <dir>/<name>/pack.yaml,
@@ -24,7 +24,7 @@ func cmdInit(app App, args []string) int {
 
 	pos := fs.Args()
 	if len(pos) < 1 || len(pos) > 2 {
-		fmt.Fprintln(app.Stderr, "mpqt init: expected <name> [dir]")
+		fmt.Fprintln(app.Stderr, "pluto init: expected <name> [dir]")
 		fs.Usage()
 		return ExitUsage
 	}
@@ -35,32 +35,32 @@ func cmdInit(app App, args []string) int {
 	}
 
 	if err := validateComponent("name", name); err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt init:", err)
+		fmt.Fprintln(app.Stderr, "pluto init:", err)
 		return ExitUsage
 	}
 
 	base := filepath.Join(filepath.Clean(dir), name)
 	if err := os.MkdirAll(base, 0o750); err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt init:", err)
+		fmt.Fprintln(app.Stderr, "pluto init:", err)
 		return ExitCommandFailure
 	}
 
 	schemaData, err := packfile.Schema(app.Registry)
 	if err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt init: schema:", err)
+		fmt.Fprintln(app.Stderr, "pluto init: schema:", err)
 		return ExitCommandFailure
 	}
 
 	if err := os.WriteFile(filepath.Join(base, "pack.yaml"), []byte(initPackYAML(name)), 0o600); err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt init:", err)
+		fmt.Fprintln(app.Stderr, "pluto init:", err)
 		return ExitCommandFailure
 	}
 	if err := os.WriteFile(filepath.Join(base, "example.yaml"), []byte(initExampleYAML(name)), 0o600); err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt init:", err)
+		fmt.Fprintln(app.Stderr, "pluto init:", err)
 		return ExitCommandFailure
 	}
 	if err := os.WriteFile(filepath.Join(base, "schema.json"), schemaData, 0o600); err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt init:", err)
+		fmt.Fprintln(app.Stderr, "pluto init:", err)
 		return ExitCommandFailure
 	}
 
@@ -106,8 +106,8 @@ func initPackYAML(name string) string {
 func initExampleYAML(name string) string {
 	return "# yaml-language-server: $schema=schema.json\n" +
 		"#\n" +
-		"# mpqt custom pack template. Run `mpqt evaluators` for the full list of\n" +
-		"# evaluator kinds and `mpqt schema` for the JSON Schema (also copied next to\n" +
+		"# Pluto custom pack template. Run `pluto evaluators` for the full list of\n" +
+		"# evaluator kinds and `pluto schema` for the JSON Schema (also copied next to\n" +
 		"# this file as schema.json for editor IntelliSense).\n" +
 		"table: example\n" +
 		"revision: v1\n" +
@@ -131,7 +131,7 @@ func initExampleYAML(name string) string {
 		"evaluators:\n" +
 		"  # TODO: describe what to evaluate. required-text is a placeholder --\n" +
 		"  # replace it (or add more) with the evaluator kinds that actually enforce\n" +
-		"  # your table's expectations; see `mpqt evaluators`.\n" +
+		"  # your table's expectations; see `pluto evaluators`.\n" +
 		"  - kind: required-text\n" +
 		"    substrings: [\"TODO: a substring every correct answer must contain\"]\n" +
 		"\n" +

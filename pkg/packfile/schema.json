@@ -1,5 +1,5 @@
 {
-  "$id": "https://github.com/looprig/mpqt/blob/main/pkg/packfile/schema.json",
+  "$id": "https://github.com/looprig/pluto/blob/main/pkg/packfile/schema.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "definitions": {
     "anchorSpec": {
@@ -674,7 +674,7 @@
       "type": "object"
     }
   },
-  "description": "A pack.yaml identity/manifest file or one table file from an mpqt pack directory (pkg/packfile).",
+  "description": "A pack.yaml identity/manifest file or one table file from a Pluto pack directory (pkg/packfile).",
   "oneOf": [
     {
       "$ref": "#/definitions/packFile"
@@ -683,5 +683,5 @@
       "$ref": "#/definitions/tableFile"
     }
   ],
-  "title": "mpqt pack file"
+  "title": "Pluto pack file"
 }

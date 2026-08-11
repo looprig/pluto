@@ -1,5 +1,5 @@
-# mpqt target manifest — the model UNDER TEST (qual.Manifest).
-# Passed as:  mpqt run --manifest target.yaml --profile profile.yaml --packs packs/core-capability
+# Pluto target manifest — the model UNDER TEST (qual.Manifest).
+# Passed as:  pluto run --manifest target.yaml --profile profile.yaml --packs packs/core-capability
 #
 # LM Studio serves an OpenAI-compatible API on http://localhost:1234/v1 and
 # needs no API key. Start LM Studio's local server and load gemma-4-31b-it

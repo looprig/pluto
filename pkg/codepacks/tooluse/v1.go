@@ -1,4 +1,4 @@
-// Package tooluse is MPQT's tool-use qualification pack: does the target
+// Package tooluse is Pluto's tool-use qualification pack: does the target
 // invoke tools when the task requires them, and does it stay disciplined
 // (no unnecessary or forbidden tool calls) when it does not. All evaluators
 // are programmatic.
@@ -8,7 +8,7 @@ import (
 	"github.com/looprig/core/content"
 	"github.com/looprig/eval"
 	"github.com/looprig/eval/exact"
-	"github.com/looprig/mpqt/pkg/qual"
+	"github.com/looprig/pluto/pkg/qual"
 )
 
 // Revision is the pack revision. Any semantic change to scenarios or

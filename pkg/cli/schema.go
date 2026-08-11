@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 
-	"github.com/looprig/mpqt/pkg/packfile"
+	"github.com/looprig/pluto/pkg/packfile"
 )
 
 // cmdSchema prints packfile.Schema(app.Registry): the JSON Schema describing
@@ -15,14 +15,14 @@ func cmdSchema(app App, args []string) int {
 		return code
 	}
 	if len(fs.Args()) > 0 {
-		fmt.Fprintln(app.Stderr, "mpqt schema: unexpected arguments")
+		fmt.Fprintln(app.Stderr, "pluto schema: unexpected arguments")
 		fs.Usage()
 		return ExitUsage
 	}
 
 	data, err := packfile.Schema(app.Registry)
 	if err != nil {
-		fmt.Fprintln(app.Stderr, "mpqt schema:", err)
+		fmt.Fprintln(app.Stderr, "pluto schema:", err)
 		return ExitCommandFailure
 	}
 	if _, err := app.Stdout.Write(data); err != nil {

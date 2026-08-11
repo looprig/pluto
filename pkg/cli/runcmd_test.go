@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/looprig/mpqt/pkg/cli"
-	"github.com/looprig/mpqt/pkg/reportjson"
+	"github.com/looprig/pluto/pkg/cli"
+	"github.com/looprig/pluto/pkg/reportjson"
 )
 
 // runFixture writes a manifest, a profile requiring a perfect capability

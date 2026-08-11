@@ -1,4 +1,4 @@
-// Package operational is MPQT's operational-stability qualification pack:
+// Package operational is Pluto's operational-stability qualification pack:
 // bounded latency across prompt sizes, and tolerance for a bounded rate of
 // tool-call errors. All evaluators are programmatic.
 package operational
@@ -10,7 +10,7 @@ import (
 	"github.com/looprig/core/content"
 	"github.com/looprig/eval"
 	"github.com/looprig/eval/exact"
-	"github.com/looprig/mpqt/pkg/qual"
+	"github.com/looprig/pluto/pkg/qual"
 )
 
 // Revision is the pack revision. Any semantic change to scenarios or
