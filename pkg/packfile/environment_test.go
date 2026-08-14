@@ -41,7 +41,7 @@ func TestEnvironmentTemplate(t *testing.T) {
 	if req.System != "Be careful." || len(req.Tools) != 1 || req.Tools[0].Name != "bash" {
 		t.Fatalf("template: %+v", req)
 	}
-	if req.ToolChoice != inference.ToolChoiceAuto {
+	if req.ToolChoice != inference.ToolAuto() {
 		t.Fatalf("tool choice: %v", req.ToolChoice)
 	}
 }
@@ -65,7 +65,7 @@ func TestEnvironmentTemplateNilReceiver(t *testing.T) {
 		t.Fatalf("Template: %v", err)
 	}
 	if req.System != "" || req.Messages != nil || req.Tools != nil || req.Output != nil ||
-		req.ToolChoice != inference.ToolChoiceAuto || req.Override != nil {
+		req.ToolChoice != inference.ToolAuto() || req.Override != nil {
 		t.Fatalf("expected zero Request, got %+v", req)
 	}
 }
@@ -76,7 +76,7 @@ func TestEnvironmentTemplateToolChoiceRequired(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Template: %v", err)
 	}
-	if req.ToolChoice != inference.ToolChoiceRequired {
+	if req.ToolChoice != inference.ToolRequired() {
 		t.Fatalf("tool choice: %v", req.ToolChoice)
 	}
 }

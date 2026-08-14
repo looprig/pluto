@@ -66,11 +66,11 @@ func (e *Environment) Template() (inference.Request, error) {
 func toolChoiceFromSpec(spec string) (inference.ToolChoice, error) {
 	switch spec {
 	case "", "auto":
-		return inference.ToolChoiceAuto, nil
+		return inference.ToolAuto(), nil
 	case "required":
-		return inference.ToolChoiceRequired, nil
+		return inference.ToolRequired(), nil
 	default:
-		return 0, &Error{Path: "environment/tool-choice", Reason: "unknown tool choice: " + spec}
+		return inference.ToolChoice{}, &Error{Path: "environment/tool-choice", Reason: "unknown tool choice: " + spec}
 	}
 }
 
