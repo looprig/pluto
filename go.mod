@@ -1,6 +1,6 @@
 module github.com/looprig/pluto
 
-go 1.26.4
+go 1.26.6
 
 require github.com/looprig/eval v0.1.3
 
