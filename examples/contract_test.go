@@ -149,7 +149,7 @@ func TestDocsExamplesArtifacts(t *testing.T) {
 	for _, literal := range []string{
 		"docs-examples:",
 		offlineExamplesCommand,
-		"GOWORK=off make test build packs",
+		"GOWORK=off make check packs",
 		"GOWORK=off go test -race ./...",
 		"cd cmd/pluto && GOWORK=off go test -race ./...",
 	} {
