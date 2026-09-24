@@ -2,11 +2,11 @@ module github.com/looprig/pluto
 
 go 1.26.8
 
-require github.com/looprig/eval v0.2.1
+require github.com/looprig/eval v0.2.2
 
 require (
-	github.com/looprig/core v0.6.1
-	github.com/looprig/inference v0.12.1
+	github.com/looprig/core v0.11.0
+	github.com/looprig/inference v0.13.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
