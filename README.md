@@ -30,6 +30,49 @@ deployment decision on it against an organization `profile.Profile`
 this whole flow into ordinary `go test`, and `reportjson` gives the result a
 canonical, redacted, versioned JSON form for storage or transport.
 
+## Status and install
+
+Released as two Go modules from this repository:
+
+- `github.com/looprig/pluto` — the library (`pkg/...`), the five Go codepacks,
+  and the YAML pack corpus under `packs/`. It never imports
+  `github.com/looprig/llm`.
+
+  ```sh
+  go get github.com/looprig/pluto@latest
+  ```
+
+- `github.com/looprig/pluto/cmd/pluto` — the `pluto` CLI, a nested module
+  tagged `cmd/pluto/vX.Y.Z` on its own cadence. It is the only place that
+  imports `github.com/looprig/llm`.
+
+  ```sh
+  go install github.com/looprig/pluto/cmd/pluto@latest
+  ```
+
+Pluto supersedes the former MPQT project. Known gaps are listed under
+"Known gaps in the YAML/CLI path" and "Coverage and deferrals" below.
+
+### Packages
+
+| Package | Purpose |
+|---|---|
+| `pkg/qual` | Manifests, packs, tables, capabilities, `qual.Plan`, and the `Scorecard`. |
+| `pkg/run` | Shared execution core: runs packs through `eval.Run` and rolls results into a `qual.Scorecard`. |
+| `pkg/plutotest` | `plutotest.Run` / `plutotest.RequireDisposition` for `go test`. |
+| `pkg/profile` | Organization profiles and `profile.Evaluate` (the disposition). |
+| `pkg/compare` | Candidate-versus-incumbent scorecard comparison. |
+| `pkg/reportjson` | Canonical, versioned JSON codec for a scorecard plus an optional profile result. |
+| `pkg/packfile` | Strict, versioned trust boundary between the YAML corpus and `qual`. |
+| `pkg/gen` | LLM-assisted scenario generation for one table. |
+| `pkg/pricing` | List-price cost estimation for runs. |
+| `pkg/ratelimit` | Client-side rate-limiting `inference.Client` decorator. |
+| `pkg/cli` | Every `pluto` command, against injected dependencies (llm-free). |
+| `pkg/qual/target` | Deterministic scripted `eval.Target` fixtures for offline pack tests. |
+| `pkg/codepacks/*` | The five built-in Go packs. |
+| `examples/*` | Runnable qualification and comparison examples. |
+| `cmd/pluto` | Nested module: the CLI composition root over `github.com/looprig/llm`. |
+
 ## Quick start
 
 Pluto packs come in two equally first-class forms, and neither supersedes the
@@ -74,9 +117,10 @@ make run PACKS=packs/core-capability
 # PACKS=... and pass extra flags via FLAGS='--max-rpm 30 --require restricted'
 ```
 
-`packs/` ships eleven real, committed packs — 63 tables and 208 scenarios in
-total, spanning the capability, safety, security, internet, operational,
-robustness, memorization, and custom-application dimensions (see "Pack
+`packs/` ships fifteen real, committed packs — 82 tables and 272 scenarios in
+total, spanning the capability, instruction-hierarchy, safety, wellbeing,
+security, internet, operational, robustness, memorization, and
+custom-application dimensions (see "Pack
 catalogue" below for the full breakdown). `packs/tool-use/discipline.yaml` is
 a good one to read first: a single table with one tool (`search`) and a
 `forbidden-tool` evaluator asserting the assistant doesn't call it for
@@ -209,7 +253,9 @@ compare: total regressions=0
 This illustrates the shape (it is not a file that exists verbatim in the
 repo): a pack's `V1()` runs against a scripted, deterministic target and
 gates on `profile.Qualified` — no YAML, no CLI, just `qual.Pack` values and
-`pkg/plutotest` inside `go test`:
+`pkg/plutotest` inside `go test` (`fixtarget` is
+`github.com/looprig/pluto/pkg/qual/target` imported under that name, as in
+`pkg/plutotest/run_test.go`):
 
 ```go
 func TestOfflineQualification(t *testing.T) {
@@ -492,6 +538,24 @@ Later phases (per the original design, still ahead): an egress and
 agentic-security lab, judge-backed rubric revisions of the capability/safety
 packs, and Markdown/HTML report renderers over the canonical `reportjson`
 form.
+
+## Where it sits
+
+Tier 4 of the Looprig workspace. The root module depends on `eval`, `core` and
+`inference`; the nested `cmd/pluto` module depends on `core`, `inference`,
+`llm` and the published `pluto` root module (it names a released root version,
+not the working tree).
+
+## Development
+
+The Go baseline is 1.26.8.
+
+```sh
+GOWORK=off go test ./...   # root module (stops at the nested cmd/pluto module)
+make check                 # fmt-check, vet, staticcheck, gosec, govulncheck, race tests, build
+make packs                 # builds the CLI and runs `pluto validate --execute packs/*`
+(cd cmd/pluto && GOWORK=off go test ./...)
+```
 
 ## Contributing
 
