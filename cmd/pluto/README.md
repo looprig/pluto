@@ -47,7 +47,7 @@ tree).
 
 ## Development
 
-The Go baseline is 1.26.8. From this directory:
+The Go baseline is 1.26.9. From this directory:
 
 ```sh
 GOWORK=off go test ./...

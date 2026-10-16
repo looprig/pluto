@@ -548,7 +548,7 @@ not the working tree).
 
 ## Development
 
-The Go baseline is 1.26.8.
+The Go baseline is 1.26.9.
 
 ```sh
 GOWORK=off go test ./...   # root module (stops at the nested cmd/pluto module)
