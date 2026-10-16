@@ -6,7 +6,7 @@ require (
 	github.com/looprig/core v0.13.2
 	github.com/looprig/inference v0.15.2
 	github.com/looprig/llm v0.16.1
-	github.com/looprig/pluto v0.2.3
+	github.com/looprig/pluto v0.2.4
 )
 
 require (

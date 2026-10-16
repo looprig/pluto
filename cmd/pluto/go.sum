@@ -24,8 +24,8 @@ github.com/looprig/inference v0.15.2 h1:d30ZV2ZDAWcGGqDrUdwM7Hrlb7vhMCalBu7ElAxN
 github.com/looprig/inference v0.15.2/go.mod h1:qnIKXG0gLHPw5q5/53geCmxZduztiAEK2Qcmsgwicaw=
 github.com/looprig/llm v0.16.1 h1:E5tBE3FVdkuFR1X+6T3QWYuY5xqLlVasYRtGLj476X8=
 github.com/looprig/llm v0.16.1/go.mod h1:4hFV6ZR5DVpZo27/1IdbS7DNMnJlgbQrMcErZPozfeQ=
-github.com/looprig/pluto v0.2.3 h1:jSql4e9adzdKGxYP7cCdrUtPYyOvdo8URocp+pLW7R0=
-github.com/looprig/pluto v0.2.3/go.mod h1:CibrmW9g1FX/ocrxXf5g7Bx1OEzUKeqNn3syrcndiyo=
+github.com/looprig/pluto v0.2.4 h1:wEBObtLXoceC20LEpAalDXnEBHxKAC9Fz0x7MLARctI=
+github.com/looprig/pluto v0.2.4/go.mod h1:Q6xauAD9HKlf8PqyDK4yw0rp5M2V0Mu6KekHi8eemu0=
 github.com/looprig/secrets v0.2.4 h1:Xus91e8bBtUQhmaf6rOVZbvvq0BesiWNm/EqPAjPTMY=
 github.com/looprig/secrets v0.2.4/go.mod h1:Kg5s9T2ROGU+M6uX6+XLfl/i3bjaD9/gbLoYlt8tgnE=
 github.com/pkg/diff v0.0.0-20210226163009-20ebb0f2a09e/go.mod h1:pJLUxLENpZxwdsKMEsNbx1VGcRFpLqf3715MtcvvzbA=
